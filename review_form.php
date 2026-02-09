@@ -27,7 +27,6 @@ function get_or_create_tag(mysqli $conn, int $user_id, string $type, string $nam
 }
 
 function replace_trade_tags_by_type(mysqli $conn, int $trade_id, int $user_id, string $type, array $tag_names): void {
-  // delete existing of that type
   $del = $conn->prepare("
     DELETE tm FROM trade_tag_map tm
     INNER JOIN trade_tags tt ON tt.id = tm.tag_id
@@ -47,14 +46,14 @@ function replace_trade_tags_by_type(mysqli $conn, int $trade_id, int $user_id, s
 }
 
 /** Load trade */
-$tstmt = $conn->prepare("SELECT id, symbol, direction, entry_time, r_multiple, is_reviewed FROM trades WHERE id=? AND user_id=? LIMIT 1");
+$tstmt = $conn->prepare("SELECT id, symbol, direction, entry_time, r_multiple FROM trades WHERE id=? AND user_id=? LIMIT 1");
 $tstmt->bind_param("ii", $trade_id, $user_id);
 $tstmt->execute();
 $trade = $tstmt->get_result()->fetch_assoc();
 if (!$trade) { http_response_code(404); exit("Trade not found."); }
 if ($trade['r_multiple'] === null) { exit("Close the trade first (R must be calculated) before reviewing."); }
 
-/** Load existing review */
+/** Existing review */
 $rstmt = $conn->prepare("SELECT * FROM trade_reviews WHERE trade_id=? LIMIT 1");
 $rstmt->bind_param("i", $trade_id);
 $rstmt->execute();
@@ -74,7 +73,7 @@ $ms->bind_param("i", $user_id);
 $ms->execute();
 $mistakeOptions = $ms->get_result()->fetch_all(MYSQLI_ASSOC);
 
-/** Current mistake selections */
+/** Selected mistakes */
 $selectedMistakes = [];
 $mm = $conn->prepare("
   SELECT tt.name
@@ -96,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $lessons = trim($_POST['lessons'] ?? '');
   $next_time = trim($_POST['next_time'] ?? '');
 
-  $rules_score = ($rules_score_raw === '') ? null : (int)$rules_score_raw;
-  if ($rules_score !== null && ($rules_score < 0 || $rules_score > 100)) {
+  $rules_score_val = ($rules_score_raw === '') ? null : (int)$rules_score_raw;
+  if ($rules_score_val !== null && ($rules_score_val < 0 || $rules_score_val > 100)) {
     $error = "Rule adherence score must be between 0 and 100.";
   } else {
     if ($review) {
@@ -106,40 +105,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         SET plan=?, execution_summary=?, rules_score=?, mistakes_notes=?, lessons=?, next_time=?
         WHERE trade_id=?
       ");
-      $u->bind_param("ssisssi", $plan, $execution_summary, $rules_score, $mistakes_notes, $lessons, $next_time, $trade_id);
+      $u->bind_param("ssisssi", $plan, $execution_summary, $rules_score_val, $mistakes_notes, $lessons, $next_time, $trade_id);
       $u->execute();
     } else {
       $i = $conn->prepare("
         INSERT INTO trade_reviews (trade_id, plan, execution_summary, rules_score, mistakes_notes, lessons, next_time)
         VALUES (?,?,?,?,?,?,?)
       ");
-      $i->bind_param("ississs", $trade_id, $plan, $execution_summary, $rules_score, $mistakes_notes, $lessons, $next_time);
+      $i->bind_param("ississs", $trade_id, $plan, $execution_summary, $rules_score_val, $mistakes_notes, $lessons, $next_time);
       $i->execute();
     }
 
-    // Mistakes mapping (multi-select + optional create)
+    // Mistake chip toggles (checkboxes)
     $picked = $_POST['mistakes'] ?? [];
     if (!is_array($picked)) $picked = [];
+
     $newMistake = trim($_POST['mistake_new'] ?? '');
     if ($newMistake !== "") $picked[] = $newMistake;
 
     replace_trade_tags_by_type($conn, $trade_id, $user_id, "mistake", $picked);
 
-    // Mark trade reviewed
+    // Mark reviewed
     $m = $conn->prepare("UPDATE trades SET is_reviewed=1 WHERE id=? AND user_id=?");
     $m->bind_param("ii", $trade_id, $user_id);
     $m->execute();
 
     $ok = "Review saved.";
 
-    // refresh selected mistakes
+    // refresh
     $mm->execute();
     $selectedMistakes = array_map(fn($x)=>$x['name'], $mm->get_result()->fetch_all(MYSQLI_ASSOC));
+    $rules_score = $rules_score_val === null ? '' : (string)$rules_score_val;
   }
 }
 
 require_once __DIR__ . "/partials/app_header.php";
 ?>
+
+<style>
+  .chipgrid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .chipbox{position:relative;display:inline-flex;align-items:center}
+  .chipbox input{position:absolute;opacity:0;pointer-events:none}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:999px;
+    border:1px solid var(--border);
+    background:var(--pill);
+    color:var(--text);
+    font-weight:900;font-size:12px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .chip:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+  .chipbox input:checked + .chip{
+    border-color:var(--accent);
+    box-shadow:var(--shadow);
+  }
+</style>
 
 <div class="card">
   <h2>Review</h2>
@@ -161,18 +183,21 @@ require_once __DIR__ . "/partials/app_header.php";
     <label>Rule adherence score (0–100)</label>
     <input name="rules_score" type="number" min="0" max="100" step="5" value="<?= e($rules_score) ?>">
 
-    <label>Mistake tags (multi-select)</label>
-    <select name="mistakes[]" multiple style="height:120px">
+    <label>Mistakes (toggle chips)</label>
+    <div class="chipgrid">
       <?php foreach ($mistakeOptions as $o): ?>
-        <?php $nm = (string)$o['name']; ?>
-        <option value="<?= e($nm) ?>" <?= in_array($nm, $selectedMistakes, true) ? 'selected' : '' ?>>
-          <?= e($nm) ?>
-        </option>
+        <?php $nm = (string)$o['name']; $checked = in_array($nm, $selectedMistakes, true); ?>
+        <label class="chipbox">
+          <input type="checkbox" name="mistakes[]" value="<?= e($nm) ?>" <?= $checked ? "checked" : "" ?>>
+          <span class="chip"><?= e($nm) ?></span>
+        </label>
       <?php endforeach; ?>
-    </select>
-    <div class="small">Hold Ctrl (Windows) / Cmd (Mac) to select multiple.</div>
+      <?php if (!$mistakeOptions): ?>
+        <span class="small">No mistake tags yet — create one below.</span>
+      <?php endif; ?>
+    </div>
 
-    <label>Or create new mistake tag (optional)</label>
+    <label>Create new mistake tag (optional)</label>
     <input name="mistake_new" placeholder="e.g. early entry, no confirmation">
 
     <label>Mistakes / confirmations (notes)</label>

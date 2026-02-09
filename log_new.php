@@ -40,10 +40,46 @@ function map_trade_tag(mysqli $conn, int $trade_id, int $tag_id): void {
 
 /** Load existing strategy tags for dropdown */
 $tagRows = [];
-$ts = $conn->prepare("SELECT id, name FROM trade_tags WHERE user_id=? AND tag_type='strategy' ORDER BY name ASC");
+$ts = $conn->prepare("SELECT name FROM trade_tags WHERE user_id=? AND tag_type='strategy' ORDER BY name ASC");
 $ts->bind_param("i", $user_id);
 $ts->execute();
 $tagRows = $ts->get_result()->fetch_all(MYSQLI_ASSOC);
+
+/**
+ * AUTO SUGGEST DATA:
+ * Build a mapping of recent (symbol|session)->strategy and (symbol)->strategy
+ * from last 200 trades that have a strategy tag.
+ */
+$suggestMap = [];   // key "SYMBOL|SESSION" => strategy
+$suggestSym = [];   // key "SYMBOL" => strategy
+
+$rec = $conn->prepare("
+  SELECT t.symbol, t.session, tt.name AS strategy, t.entry_time
+  FROM trades t
+  INNER JOIN trade_tag_map tm ON tm.trade_id = t.id
+  INNER JOIN trade_tags tt ON tt.id = tm.tag_id
+  WHERE t.user_id = ?
+    AND tt.user_id = ?
+    AND tt.tag_type = 'strategy'
+  ORDER BY t.entry_time DESC
+  LIMIT 200
+");
+$rec->bind_param("ii", $user_id, $user_id);
+$rec->execute();
+$recent = $rec->get_result()->fetch_all(MYSQLI_ASSOC);
+
+foreach ($recent as $r) {
+  $sym = strtoupper(trim((string)$r['symbol']));
+  $ses = trim((string)$r['session']);
+  $str = (string)$r['strategy'];
+
+  if ($sym === "" || $str === "") continue;
+
+  $k1 = $sym . "|" . $ses;
+  if (!isset($suggestMap[$k1])) $suggestMap[$k1] = $str;
+
+  if (!isset($suggestSym[$sym])) $suggestSym[$sym] = $str;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $symbol = strtoupper(trim($_POST['symbol'] ?? ''));
@@ -95,7 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $trade_id = (int)$conn->insert_id;
 
-    // Map strategy tag if provided
     if ($strategy_name !== "") {
       $tag_id = get_or_create_tag($conn, $user_id, "strategy", $strategy_name);
       map_trade_tag($conn, $trade_id, $tag_id);
@@ -115,11 +150,11 @@ require_once __DIR__ . "/partials/app_header.php";
 
   <?php if ($error): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
 
-  <form method="post">
+  <form method="post" id="newTradeForm">
     <div class="row">
       <div class="col">
         <label>Symbol</label>
-        <input name="symbol" placeholder="EURUSD, XAUUSD..." required>
+        <input id="symInput" name="symbol" placeholder="EURUSD, XAUUSD..." required>
       </div>
       <div class="col">
         <label>Market</label>
@@ -138,7 +173,7 @@ require_once __DIR__ . "/partials/app_header.php";
       </div>
       <div class="col">
         <label>Session</label>
-        <select name="session">
+        <select id="sessionSel" name="session">
           <option value="">(optional)</option>
           <?php foreach (["Asia","London","NY"] as $s): ?>
             <option value="<?= e($s) ?>"><?= e($s) ?></option>
@@ -184,19 +219,19 @@ require_once __DIR__ . "/partials/app_header.php";
     <div class="row">
       <div class="col">
         <label>Strategy (select)</label>
-        <select name="strategy_existing">
+        <select id="strategySel" name="strategy_existing">
           <option value="">(none)</option>
           <?php foreach ($tagRows as $t): ?>
-            <option value="<?= e($t['name']) ?>"><?= e($t['name']) ?></option>
+            <?php $nm = (string)$t['name']; ?>
+            <option value="<?= e($nm) ?>"><?= e($nm) ?></option>
           <?php endforeach; ?>
         </select>
-        <div class="small">Choose one existing strategy tag.</div>
+        <div class="small" id="autoHint" style="color:var(--muted)">Auto-suggest will appear when possible.</div>
       </div>
 
       <div class="col">
         <label>Or create strategy (optional)</label>
-        <input name="strategy_new" placeholder="e.g. Sweep + MSS">
-        <div class="small">If filled, it will be created and used.</div>
+        <input id="strategyNew" name="strategy_new" placeholder="e.g. Sweep + MSS">
       </div>
 
       <div class="col">
@@ -214,5 +249,59 @@ require_once __DIR__ . "/partials/app_header.php";
     </div>
   </form>
 </div>
+
+<script>
+  const suggestBySymSession = <?= json_encode($suggestMap) ?>;
+  const suggestBySym = <?= json_encode($suggestSym) ?>;
+
+  const symInput = document.getElementById("symInput");
+  const sessionSel = document.getElementById("sessionSel");
+  const strategySel = document.getElementById("strategySel");
+  const strategyNew = document.getElementById("strategyNew");
+  const autoHint = document.getElementById("autoHint");
+
+  function suggest(){
+    // If user typed a new strategy manually, do nothing.
+    if (strategyNew.value.trim() !== "") {
+      autoHint.textContent = "Manual strategy entry active.";
+      return;
+    }
+
+    const sym = (symInput.value || "").trim().toUpperCase();
+    const ses = (sessionSel.value || "").trim();
+
+    if (!sym) {
+      autoHint.textContent = "Auto-suggest will appear when possible.";
+      return;
+    }
+
+    let picked = "";
+    const k = sym + "|" + ses;
+    if (suggestBySymSession[k]) picked = suggestBySymSession[k];
+    else if (suggestBySym[sym]) picked = suggestBySym[sym];
+
+    if (!picked) {
+      autoHint.textContent = "No suggestion yet for this symbol/session.";
+      return;
+    }
+
+    // Try to select it in dropdown if it exists.
+    const options = Array.from(strategySel.options).map(o => o.value);
+    if (options.includes(picked)) {
+      strategySel.value = picked;
+      autoHint.textContent = "Suggested strategy: " + picked;
+    } else {
+      autoHint.textContent = "Suggested strategy exists but not in list (create it): " + picked;
+      // We won't force-create; we just show hint.
+    }
+  }
+
+  symInput.addEventListener("input", suggest);
+  sessionSel.addEventListener("change", suggest);
+  strategyNew.addEventListener("input", () => {
+    if (strategyNew.value.trim() !== "") autoHint.textContent = "Manual strategy entry active.";
+    else suggest();
+  });
+</script>
 
 <?php require_once __DIR__ . "/partials/app_footer.php"; ?>

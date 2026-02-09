@@ -29,16 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /** Brand */
-$appName = "OPTIMISTTHE1% Journal"; // change to your preferred brand name
+$appName = "NXLOG Analytics"; 
 $appBadge = "BETA";
 $year = date("Y");
 
 /** Social links (replace # with your real links) */
 $social = [
-  "instagram" => "#",
+  "instagram" => "https://www.instagram.com/nxloganalytics",
   "x"         => "#",
   "threads"   => "#",
-  "discord"   => "#",
+  "discord"   => "https://discord.gg/tyNntXG8h",
 ];
 ?>
 <!doctype html>

@@ -32,7 +32,6 @@ function get_or_create_tag(mysqli $conn, int $user_id, string $type, string $nam
 }
 
 function set_trade_strategy(mysqli $conn, int $trade_id, int $user_id, string $strategy_name): void {
-  // delete existing strategy mappings
   $del = $conn->prepare("
     DELETE tm FROM trade_tag_map tm
     INNER JOIN trade_tags tt ON tt.id = tm.tag_id
@@ -57,14 +56,14 @@ if (!$trade) { http_response_code(404); exit("Trade not found."); }
 
 $error = $ok = "";
 
-/** Strategy options */
+/** strategy options */
 $opts = [];
 $st = $conn->prepare("SELECT name FROM trade_tags WHERE user_id=? AND tag_type='strategy' ORDER BY name ASC");
 $st->bind_param("i", $user_id);
 $st->execute();
 $opts = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 
-/** Current strategy */
+/** current strategy */
 $strategy = "";
 $sq = $conn->prepare("
   SELECT tt.name
@@ -78,7 +77,7 @@ $sq->execute();
 $sr = $sq->get_result()->fetch_assoc();
 if ($sr) $strategy = (string)$sr['name'];
 
-/** Mistake tags */
+/** mistake tags */
 $mistakeNames = [];
 $mq = $conn->prepare("
   SELECT tt.name
@@ -91,21 +90,19 @@ $mq->bind_param("ii", $id, $user_id);
 $mq->execute();
 $mistakeNames = array_map(fn($x)=>$x['name'], $mq->get_result()->fetch_all(MYSQLI_ASSOC));
 
-/** Review snippet */
+/** review snippet */
 $rv = $conn->prepare("SELECT id, rules_score FROM trade_reviews WHERE trade_id=? LIMIT 1");
 $rv->bind_param("i", $id);
 $rv->execute();
 $review = $rv->get_result()->fetch_assoc();
 
-/** QUICK ASSIGN STRATEGY */
+/** quick assign strategy */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_strategy') {
   $existing = trim($_POST['strategy_existing'] ?? '');
   $new = trim($_POST['strategy_new'] ?? '');
-  $chosen = ($new !== "") ? $new : $existing; // empty means unassigned
-
+  $chosen = ($new !== "") ? $new : $existing;
   set_trade_strategy($conn, $id, $user_id, $chosen);
 
-  // refresh current strategy + options
   $st->execute();
   $opts = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -116,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_s
   $ok = "Strategy updated.";
 }
 
-/** CLOSE TRADE (R-first) */
+/** close trade */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'close') {
   $exit_time = dtlocal_to_mysql($_POST['exit_time'] ?? '');
   $exit_price_raw = trim($_POST['exit_price'] ?? '');
@@ -156,7 +153,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'close
       $upd->execute();
       $ok = "Trade closed. R and outcome calculated.";
 
-      // refresh trade
       $stmt = $conn->prepare("SELECT * FROM trades WHERE id=? AND user_id=? LIMIT 1");
       $stmt->bind_param("ii", $id, $user_id);
       $stmt->execute();
@@ -177,11 +173,11 @@ require_once __DIR__ . "/partials/app_header.php";
     border:1px solid var(--border);
     background:var(--pill);
     color:var(--text);
-    font-weight:800;font-size:12px;
+    font-weight:900;font-size:12px;
     text-decoration:none;
   }
   .chip:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
-  .chip strong{font-weight:900}
+  .chipgrid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 </style>
 
 <div class="card">
@@ -209,13 +205,20 @@ require_once __DIR__ . "/partials/app_header.php";
   <div class="row">
     <div class="col card">
       <h3>Context</h3>
-      <div class="small">
-        <b>Strategy:</b>
-        <?= $strategy ? '<span class="chip"><strong>'.e($strategy).'</strong></span>' : '—' ?>
-      </div>
+      <div class="small"><b>Strategy:</b> <?= $strategy ? '<span class="chip">'.e($strategy).'</span>' : '—' ?></div>
       <div class="small"><b>Setup:</b> <?= e($trade['setup'] ?? '') ?></div>
       <div class="small"><b>Legacy tags:</b> <?= e($trade['tags'] ?? '') ?></div>
-      <div class="small"><b>Mistakes:</b> <?= $mistakeNames ? e(implode(", ", $mistakeNames)) : "—" ?></div>
+
+      <div class="small" style="margin-top:10px"><b>Mistakes:</b></div>
+      <div class="chipgrid">
+        <?php if ($mistakeNames): ?>
+          <?php foreach ($mistakeNames as $m): ?>
+            <span class="chip"><?= e($m) ?></span>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <span class="small">—</span>
+        <?php endif; ?>
+      </div>
     </div>
 
     <div class="col card">
@@ -231,7 +234,6 @@ require_once __DIR__ . "/partials/app_header.php";
     </div>
   </div>
 
-  <!-- QUICK ASSIGN STRATEGY -->
   <div class="card">
     <h3>Quick Assign Strategy</h3>
     <form method="post" class="row" style="align-items:end">
@@ -246,13 +248,11 @@ require_once __DIR__ . "/partials/app_header.php";
             <option value="<?= e($nm) ?>" <?= ($strategy===$nm)?'selected':'' ?>><?= e($nm) ?></option>
           <?php endforeach; ?>
         </select>
-        <div class="small">Choose a strategy for this trade.</div>
       </div>
 
       <div class="col">
         <label>Or create new</label>
         <input name="strategy_new" placeholder="e.g. Sweep + MSS">
-        <div class="small">If filled, it creates and assigns.</div>
       </div>
 
       <div class="col" style="align-self:end">
