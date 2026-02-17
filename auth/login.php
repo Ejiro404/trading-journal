@@ -33,12 +33,12 @@ $appName = "NXLOG Analytics";
 $appBadge = "BETA";
 $year = date("Y");
 
-/** Social links (replace # with your real links) */
+/** Social links */
 $social = [
   "instagram" => "https://www.instagram.com/nxloganalytics",
   "x"         => "#",
   "threads"   => "#",
-  "discord"   => "https://discord.gg/tyNntXG8h",
+  "discord"   => "https://discord.gg/tyNntXG",
 ];
 ?>
 <!doctype html>
@@ -49,7 +49,33 @@ $social = [
   <link rel="stylesheet" href="/trading-journal/assets/css/style.css">
   <link rel="stylesheet" href="/trading-journal/assets/css/auth.css">
   <title>Login • <?= htmlspecialchars($appName) ?></title>
+  
+  <script>
+    (function () {
+      const saved = localStorage.getItem("nx_theme");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const dark = saved ? saved === "dark" : prefersDark;
+      document.documentElement.classList.toggle("dark", dark);
+    })();
+  </script>
+
+  <style>
+    
+    .theme-toggle {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      border: 1px solid var(--border);
+      background: var(--pill);
+      border-radius: 999px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1;
+    }
+  </style>
 </head>
+
 
 <body class="auth-bg">
 
@@ -62,6 +88,9 @@ $social = [
 
   <main class="auth-wrap">
     <div class="auth-card">
+
+    <!-- TOGGLE BUTTON (added) -->
+      <button id="themeBtn" class="theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
       <h2 class="auth-title">Sign in to <?= htmlspecialchars($appName) ?></h2>
       <p class="auth-sub">Welcome back! Sign in to your account below.</p>
 
@@ -159,6 +188,19 @@ $social = [
     eyeOff.style.display = hidden ? "block" : "none";
     pwToggle.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
     pw.focus();
+  });
+
+   // THEME TOGGLE LOGIC 
+  const themeBtn = document.getElementById("themeBtn");
+  function syncThemeIcon() {
+    themeBtn.textContent = document.documentElement.classList.contains("dark") ? "☀️" : "🌙";
+  }
+  syncThemeIcon();
+
+  themeBtn.addEventListener("click", () => {
+    const dark = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("nx_theme", dark ? "dark" : "light");
+    syncThemeIcon();
   });
 </script>
 </body>

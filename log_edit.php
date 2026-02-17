@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         WHERE id=? AND user_id=?
       ");
       $upd->bind_param(
-        "sssssddddddsssii",
+        "sssssdddddsssii",
         $symbol, $market, $direction, $session,
         $entry_time, $entry_price, $stop_loss, $take_profit,
         $position_size, $risk_amount, $setup, $legacy_tags, $notes_pre,

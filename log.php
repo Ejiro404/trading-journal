@@ -4,16 +4,34 @@ require_once __DIR__ . "/config/auth.php";
 require_login();
 
 $current = "log";
-$pageTitle = "Log • NXLOG Analytics";
 
-$user_id = (int)$_SESSION['user_id'];
+$user_id = (int)($_SESSION['user_id'] ?? 0);
 
 /** Filters */
+$q_date     = trim($_GET['date'] ?? ''); // YYYY-MM-DD
 $q_symbol   = trim($_GET['symbol'] ?? '');
 $q_outcome  = trim($_GET['outcome'] ?? ''); // win/loss/be
 $q_from     = trim($_GET['from'] ?? '');
 $q_to       = trim($_GET['to'] ?? '');
 $q_strategy = trim($_GET['strategy'] ?? ''); // ''=all, '__none__'=unassigned, else strategy name
+
+// If ?date= is provided and valid, force from/to to that date
+$dateTitle = "";
+if ($q_date !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $q_date)) {
+  $q_from = $q_date;
+  $q_to   = $q_date;
+
+  try {
+    $dt = new DateTimeImmutable($q_date);
+    $dateTitle = "Trades for " . $dt->format("M d");
+  } catch (Throwable $e) {
+    $dateTitle = "Trades for " . $q_date;
+  }
+}
+
+$pageTitle = ($dateTitle !== "")
+  ? ($dateTitle . " • Log • NXLOG Analytics")
+  : ("Log • NXLOG Analytics");
 
 /** Strategy options */
 $opts = [];
@@ -110,13 +128,24 @@ require_once __DIR__ . "/partials/app_header.php";
   .chip:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
   .chip.active{border-color:var(--accent)}
   .chip small{font-weight:800;color:var(--muted)}
+  .subtitle{margin:6px 0 0 0;color:var(--muted);font-size:12px;font-weight:800}
 </style>
 
 <div class="card">
-  <h2>Log</h2>
-  <p class="small">A structured record of execution and outcomes.</p>
+  <h2><?= e($dateTitle !== "" ? $dateTitle : "Log") ?></h2>
+  <p class="small">
+    <?= $dateTitle !== "" ? "Filtered view for a single day." : "A structured record of execution and outcomes." ?>
+  </p>
+
+  <?php if ($q_date !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $q_date)): ?>
+    <div class="subtitle">Tip: clear the date filter to view all trades.</div>
+  <?php endif; ?>
 
   <form method="get" class="row">
+    <?php if ($q_date !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $q_date)): ?>
+      <input type="hidden" name="date" value="<?= e($q_date) ?>">
+    <?php endif; ?>
+
     <div class="col">
       <label>Symbol</label>
       <input name="symbol" value="<?= e($q_symbol) ?>" placeholder="EURUSD, BTCUSD...">
@@ -146,12 +175,12 @@ require_once __DIR__ . "/partials/app_header.php";
 
     <div class="col">
       <label>From</label>
-      <input name="from" type="date" value="<?= e($q_from) ?>">
+      <input name="from" type="date" value="<?= e($q_from) ?>" <?= ($q_date !== '' ? 'disabled' : '') ?>>
     </div>
 
     <div class="col">
       <label>To</label>
-      <input name="to" type="date" value="<?= e($q_to) ?>">
+      <input name="to" type="date" value="<?= e($q_to) ?>" <?= ($q_date !== '' ? 'disabled' : '') ?>>
     </div>
 
     <div class="col" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap">
@@ -163,14 +192,19 @@ require_once __DIR__ . "/partials/app_header.php";
   <!-- Strategy chips -->
   <div class="chips">
     <?php
-      // Build base URL preserving other filters except strategy
+      // Base preserves filters except strategy
       $base = [
         'symbol' => $q_symbol,
         'outcome'=> $q_outcome,
         'from'   => $q_from,
         'to'     => $q_to,
       ];
-      $linkAll = "/trading-journal/log.php?" . http_build_query($base + ['strategy' => '']);
+      if ($q_date !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $q_date)) {
+        $base['date'] = $q_date;
+        unset($base['from'], $base['to']); // date controls the range
+      }
+
+      $linkAll  = "/trading-journal/log.php?" . http_build_query($base + ['strategy' => '']);
       $linkNone = "/trading-journal/log.php?" . http_build_query($base + ['strategy' => '__none__']);
     ?>
     <a class="chip <?= $q_strategy===''?'active':'' ?>" href="<?= e($linkAll) ?>">All</a>

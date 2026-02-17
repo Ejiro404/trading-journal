@@ -1,104 +1,216 @@
 <?php
-require_once __DIR__ . "/../config/app.php";
-
+// partials/app_header.php
 if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . "/../config/auth.php";
+require_login();
 
-if (!function_exists('e')) {
-  function e($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-}
-
-$pageTitle = $pageTitle ?? $app["name"];
-$current = $current ?? "";
+$pageTitle = $pageTitle ?? "NXLOG Analytics";
+$current   = $current ?? "";
 ?>
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/trading-journal/assets/css/style.css">
-  <title><?= e($pageTitle) ?></title>
-  <style>
-    .shell{display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start}
-    @media (max-width: 920px){ .shell{grid-template-columns:1fr} }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= e($pageTitle) ?></title>
+<link rel="stylesheet" href="/trading-journal/assets/css/style.css">
 
-    .topbar2{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
-    .brand2{display:flex;align-items:center;gap:10px}
-    .logo2{
-      width:36px;height:36px;border-radius:12px;display:grid;place-items:center;
-      background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);
-      font-weight:900;color:var(--accent);
-    }
-    .sub2{font-size:12px;color:var(--muted);font-weight:700}
-    .top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
-    .ghost{background:var(--pill)!important;color:var(--text)!important;border:1px solid var(--border)!important}
+<script>
+/* ===== THEME BOOT (AUTO fallback) ===== */
+(function () {
+  var saved = localStorage.getItem("nx_theme"); // 'dark' | 'light' | null
+  if (saved !== "dark" && saved !== "light") saved = null;
 
-    .navdot{width:10px;height:10px;border-radius:999px;background:var(--border)}
-    .active .navdot{background:var(--accent)}
-    .active{border-color:var(--accent)!important}
-  </style>
+  var prefersDark = false;
+  try { prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches; } catch(e){}
+
+  var useDark = saved ? (saved === "dark") : prefersDark;
+  document.documentElement.classList.toggle("dark", useDark);
+})();
+</script>
+
+<style>
+/* Keep your existing CSS file intact — only small overrides here */
+
+/* Make footer not "far away" */
+.sidebar-foot{
+  margin-top:12px !important;   /* overrides margin-top:auto from style.css */
+  padding-top:10px;
+  border-top:1px solid var(--border);
+}
+
+/* Nav item icon container (works with your .nav-item) */
+.nav-item .ico{
+  width:38px;height:38px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--pill);
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+}
+
+/* Button that looks exactly like links */
+.nav-btn{
+  width:100%;
+  text-align:left;
+  background:transparent;
+  border:1px solid transparent;
+  cursor:pointer;
+}
+.nav-btn:hover{
+  background:var(--pill);
+  border-color:var(--border);
+  box-shadow:var(--shadow);
+  transform:translateY(-1px);
+}
+
+/* Collapsed sidebar */
+.sb-collapsed .sidebar{ width:86px; }
+.sb-collapsed .sidebar .txt,
+.sb-collapsed .logo-text{ display:none; }
+.sb-collapsed .sidebar .nav-item{ justify-content:center; }
+.sb-collapsed .sidebar .nav-item .ico{ margin:0; }
+
+/* Tooltip on hover when collapsed */
+.nav-item{ position:relative; }
+.nav-item[data-title]:hover::after{
+  content: attr(data-title);
+  position:absolute;
+  left:92px;
+  top:50%;
+  transform:translateY(-50%);
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  color:var(--text);
+  padding:8px 10px;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+  z-index:9999;
+}
+html:not(.sb-collapsed) .nav-item[data-title]:hover::after{ display:none; }
+</style>
 </head>
+
 <body>
-<div class="container">
+<div class="app">
 
-  <div class="topbar2">
-    <div class="brand2">
-      <div class="logo2"><?= e($app["logo_text"]) ?></div>
-      <div>
-        <div style="font-weight:900;line-height:1.1"><?= e($app["name"]) ?></div>
-        <div class="sub2"><?= e($app["version"]) ?> • Structured journaling</div>
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <!-- DO NOT change your logo title/sub (kept as-is) -->
+    <div class="sidebar-head">
+      <div class="logo">
+        <div class="logo-title">NXLOG</div>
       </div>
     </div>
 
-    <div class="top-actions">
-      <!-- FIXED: New Trade now points to log_new.php -->
-      <a class="btn ghost" href="/trading-journal/log_new.php">New Trade</a>
-      <a class="btn ghost" href="/trading-journal/review_queue.php">Review</a>
-      <a class="btn" href="/trading-journal/logout.php">Logout</a>
+    <nav class="sidebar-nav">
+      <a class="nav-item <?= $current==='dashboard'?'active':'' ?>" href="/trading-journal/dashboard.php" data-title="Dashboard">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="txt">Dashboard</span>
+      </a>
+
+      <a class="nav-item <?= $current==='log'?'active':'' ?>" href="/trading-journal/log.php" data-title="Log">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M7 4h11a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M7 8h9M7 12h9M7 16h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="txt">Log</span>
+      </a>
+
+      <a class="nav-item <?= $current==='review'?'active':'' ?>" href="/trading-journal/review_queue.php" data-title="Review">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M9 11l3 3L22 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="txt">Review</span>
+      </a>
+
+      <a class="nav-item <?= $current==='analytics'?'active':'' ?>" href="/trading-journal/analytics.php" data-title="Analytics">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M4 19V5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 15V9M12 19V7M16 12V9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="txt">Analytics</span>
+      </a>
+
+      <a class="nav-item <?= $current==='state'?'active':'' ?>" href="/trading-journal/state.php" data-title="State">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M3 12h4l2-6 4 12 2-6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="txt">State</span>
+      </a>
+
+      <a class="nav-item <?= $current==='reports'?'active':'' ?>" href="/trading-journal/reports.php" data-title="Reports">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M8 13h8M8 17h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="txt">Reports</span>
+      </a>
+
+      <a class="nav-item <?= $current==='settings'?'active':'' ?>" href="/trading-journal/settings.php" data-title="Settings">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M19.4 15a7.8 7.8 0 0 0 .1-2l2-1.2-2-3.4-2.3.7a7.3 7.3 0 0 0-1.7-1L15 5H9l-.5 3.1a7.3 7.3 0 0 0-1.7 1L4.5 8.4l-2 3.4 2 1.2a7.8 7.8 0 0 0 .1 2l-2 1.2 2 3.4 2.3-.7a7.3 7.3 0 0 0 1.7 1L9 23h6l.5-3.1a7.3 7.3 0 0 0 1.7-1l2.3.7 2-3.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="txt">Settings</span>
+      </a>
+
+      <a class="nav-item" href="/trading-journal/logout.php" data-title="Logout">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M10 17h-1a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M15 12H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M15 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="txt">Logout</span>
+      </a>
+    </nav>
+
+    <!-- Theme toggle (NOT distant, styled like nav-item) -->
+    <div class="sidebar-foot">
+      <button class="nav-item nav-btn" id="themeToggle" type="button" data-title="Theme">
+        <span class="ico" id="themeIcon" aria-hidden="true"></span>
+        <span class="txt" id="themeText">Theme</span>
+      </button>
     </div>
-  </div>
+  </aside>
 
-  <div class="shell">
-    <aside class="card" style="height:fit-content">
-      <div style="font-weight:900;margin-bottom:10px">Workspace</div>
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <!-- Sidebar collapse button -->
+      <button class="iconbtn" id="sidebarBtn" type="button" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
 
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <a class="btn <?= $current==='dashboard'?'active':'' ?> <?= $current==='dashboard'?'':'ghost' ?>" href="/trading-journal/dashboard.php">
-          <span class="navdot"></span> Dashboard
-        </a>
+      <!-- Removed username from topbar as requested -->
+      <div class="topbar-title"><strong><?= e($pageTitle) ?></strong></div>
+      <div></div>
+    </div>
 
-        <!-- FIXED: Log points to log.php -->
-        <a class="btn <?= $current==='log'?'active':'' ?> <?= $current==='log'?'':'ghost' ?>" href="/trading-journal/log.php">
-          <span class="navdot"></span> Log
-        </a>
-
-        <a class="btn <?= $current==='review'?'active':'' ?> <?= $current==='review'?'':'ghost' ?>" href="/trading-journal/review_queue.php">
-          <span class="navdot"></span> Review
-        </a>
-
-        <a class="btn <?= $current==='analytics'?'active':'' ?> <?= $current==='analytics'?'':'ghost' ?>" href="/trading-journal/analytics.php">
-          <span class="navdot"></span> Analytics
-        </a>
-
-        <a class="btn <?= $current==='state'?'active':'' ?> <?= $current==='state'?'':'ghost' ?>" href="/trading-journal/state.php">
-          <span class="navdot"></span> State
-        </a>
-
-        <a class="btn <?= $current==='reports'?'active':'' ?> <?= $current==='reports'?'':'ghost' ?>" href="/trading-journal/reports.php">
-          <span class="navdot"></span> Reports
-        </a>
-
-        <a class="btn <?= $current==='insights'?'active':'' ?> <?= $current==='insights'?'':'ghost' ?>" href="/trading-journal/insights.php">
-          <span class="navdot"></span> Insights
-        </a>
-
-        <a class="btn <?= $current==='settings'?'active':'' ?> <?= $current==='settings'?'':'ghost' ?>" href="/trading-journal/settings.php">
-          <span class="navdot"></span> Settings
-        </a>
-      </div>
-
-      <div style="margin-top:14px" class="small">
-        Signed in as <b><?= e($_SESSION['user_name'] ?? 'User') ?></b>
-      </div>
-    </aside>
-
-    <main>
+    <div class="container">
