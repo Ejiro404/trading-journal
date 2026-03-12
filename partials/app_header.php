@@ -16,9 +16,9 @@ $current   = $current ?? "";
 <link rel="stylesheet" href="/trading-journal/assets/css/style.css">
 
 <script>
-/* ===== THEME BOOT (AUTO fallback) ===== */
+/* ===== THEME + SIDEBAR BOOT (pre-paint) ===== */
 (function () {
-  var saved = localStorage.getItem("nx_theme"); // 'dark' | 'light' | null
+  var saved = localStorage.getItem("nx_theme");
   if (saved !== "dark" && saved !== "light") saved = null;
 
   var prefersDark = false;
@@ -26,20 +26,67 @@ $current   = $current ?? "";
 
   var useDark = saved ? (saved === "dark") : prefersDark;
   document.documentElement.classList.toggle("dark", useDark);
+
+  var sb = localStorage.getItem("nx_sidebar");
+  if (sb === "collapsed") document.documentElement.classList.add("sb-collapsed");
 })();
 </script>
 
 <style>
-/* Keep your existing CSS file intact — only small overrides here */
-
-/* Make footer not "far away" */
-.sidebar-foot{
-  margin-top:12px !important;   /* overrides margin-top:auto from style.css */
-  padding-top:10px;
-  border-top:1px solid var(--border);
+.sidebar-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
 }
 
-/* Nav item icon container (works with your .nav-item) */
+.logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.logo-img{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--card);
+  object-fit:contain;
+  box-shadow: var(--shadow);
+}
+.logo-sr{
+  position:absolute;
+  width:1px;height:1px;
+  padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);
+  white-space:nowrap;border:0;
+}
+
+.sidebar-toggle{
+  width:42px;height:42px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--pill);
+  color:var(--text);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.sidebar-toggle:hover{
+  transform:translateY(-1px);
+  box-shadow:var(--shadow);
+  border-color:rgba(109,94,252,.35);
+}
+
+html.sb-collapsed .sidebar{ width:86px !important; }
+html.sb-collapsed .main{ margin-left:86px !important; }
+
+html.sb-collapsed .sidebar .txt,
+html.sb-collapsed .sidebar .logo-text{ display:none !important; }
+html.sb-collapsed .sidebar .nav-item{ justify-content:center; }
+
 .nav-item .ico{
   width:38px;height:38px;
   border-radius:14px;
@@ -50,7 +97,6 @@ $current   = $current ?? "";
   flex:0 0 auto;
 }
 
-/* Button that looks exactly like links */
 .nav-btn{
   width:100%;
   text-align:left;
@@ -65,16 +111,8 @@ $current   = $current ?? "";
   transform:translateY(-1px);
 }
 
-/* Collapsed sidebar */
-.sb-collapsed .sidebar{ width:86px; }
-.sb-collapsed .sidebar .txt,
-.sb-collapsed .logo-text{ display:none; }
-.sb-collapsed .sidebar .nav-item{ justify-content:center; }
-.sb-collapsed .sidebar .nav-item .ico{ margin:0; }
-
-/* Tooltip on hover when collapsed */
 .nav-item{ position:relative; }
-.nav-item[data-title]:hover::after{
+html.sb-collapsed .nav-item[data-title]:hover::after{
   content: attr(data-title);
   position:absolute;
   left:92px;
@@ -91,23 +129,83 @@ $current   = $current ?? "";
   white-space:nowrap;
   z-index:9999;
 }
-html:not(.sb-collapsed) .nav-item[data-title]:hover::after{ display:none; }
+
+.sidebar-foot{
+  margin-top:12px !important;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+}
+
+.nav-item:hover{
+  border-color: rgba(109,94,252,.22) !important;
+  box-shadow:
+    var(--shadow),
+    0 0 0 4px rgba(109,94,252,.10);
+}
+.nav-item.active{
+  box-shadow:
+    var(--shadow),
+    0 0 0 4px rgba(109,94,252,.12);
+}
+.sidebar-toggle:hover{
+  box-shadow:
+    var(--shadow),
+    0 0 0 4px rgba(109,94,252,.10);
+}
+.logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.logo-img{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  object-fit:cover;
+  border:1px solid var(--border);
+  background:var(--card);
+}
+.logo-text{
+  display:flex;
+  flex-direction:column;
+  line-height:1.05;
+}
+.logo-title{
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+.logo-sub{
+  margin-top:3px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+}
 </style>
 </head>
 
 <body>
 <div class="app">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
-    <!-- DO NOT change your logo title/sub (kept as-is) -->
+
     <div class="sidebar-head">
       <div class="logo">
-        <div class="logo-title">NXLOG</div>
+        <img class="logo-img" src="/trading-journal/assets/img/logo.png" alt="NXLOG">
+        <div class="logo-text">
+          <div class="logo-title">NXLOG</div>
+          <div class="logo-sub">Analytics</div>
+        </div>
       </div>
+
+      <button class="sidebar-toggle" id="sidebarToggleTop" type="button" aria-label="Collapse sidebar">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
 
     <nav class="sidebar-nav">
+
       <a class="nav-item <?= $current==='dashboard'?'active':'' ?>" href="/trading-journal/dashboard.php" data-title="Dashboard">
         <span class="ico" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="18" height="18">
@@ -125,6 +223,16 @@ html:not(.sb-collapsed) .nav-item[data-title]:hover::after{ display:none; }
           </svg>
         </span>
         <span class="txt">Log</span>
+      </a>
+
+      <a class="nav-item <?= $current==='trade-history'?'active':'' ?>" href="/trading-journal/trade-history.php" data-title="Trade History">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M8 6h12M8 12h12M8 18h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="txt">Trade History</span>
       </a>
 
       <a class="nav-item <?= $current==='review'?'active':'' ?>" href="/trading-journal/review_queue.php" data-title="Review">
@@ -187,9 +295,9 @@ html:not(.sb-collapsed) .nav-item[data-title]:hover::after{ display:none; }
         </span>
         <span class="txt">Logout</span>
       </a>
+
     </nav>
 
-    <!-- Theme toggle (NOT distant, styled like nav-item) -->
     <div class="sidebar-foot">
       <button class="nav-item nav-btn" id="themeToggle" type="button" data-title="Theme">
         <span class="ico" id="themeIcon" aria-hidden="true"></span>
@@ -198,19 +306,10 @@ html:not(.sb-collapsed) .nav-item[data-title]:hover::after{ display:none; }
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main">
     <div class="topbar">
-      <!-- Sidebar collapse button -->
-      <button class="iconbtn" id="sidebarBtn" type="button" aria-label="Toggle sidebar">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-
-      <!-- Removed username from topbar as requested -->
       <div class="topbar-title"><strong><?= e($pageTitle) ?></strong></div>
-      <div></div>
+      <div class="topbar-right"></div>
     </div>
 
     <div class="container">

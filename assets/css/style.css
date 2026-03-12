@@ -179,7 +179,7 @@ textarea{ min-height:120px; resize:vertical; }
   font-size:12px;color:var(--muted);font-weight:700;
 }
 
-/* ===== App Shell layout ===== */
+/* App Shell layout */
 .app{
   display:flex;
   min-height:100vh;
@@ -268,7 +268,7 @@ textarea{ min-height:120px; resize:vertical; }
 }
 .toggle-row:hover{ box-shadow:var(--shadow); transform:translateY(-1px); }
 
-/* ===== Collapsed Sidebar ===== */
+/* Collapsed Sidebar */
 .sb-collapsed .sidebar{ width:86px; }
 .sb-collapsed .sidebar .txt,
 .sb-collapsed .logo-text{ display:none; }
@@ -276,7 +276,7 @@ textarea{ min-height:120px; resize:vertical; }
 .sb-collapsed .sidebar .toggle-row{ justify-content:center; }
 .sb-collapsed .sidebar .toggle-row .txt{ display:none; }
 
-/* ===== Responsive ===== */
+/*  Responsive  */
 @media (max-width: 920px){
   .sidebar{
     position:fixed;

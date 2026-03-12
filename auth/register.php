@@ -143,7 +143,7 @@ $social = [
     </div>
   </div>
 
-  <!-- Toggle top-right (no top-left login button anymore) -->
+  <!-- Toggle top-right -->
   <button class="theme-corner" type="button" id="themeBtn" aria-label="Toggle theme">🌙</button>
 
   <main class="auth-wrap">

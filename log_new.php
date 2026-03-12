@@ -6,8 +6,14 @@ require_login();
 $current = "log";
 $pageTitle = "New Trade • NXLOG Analytics";
 
-$user_id = (int)$_SESSION['user_id'];
+$user_id = (int)($_SESSION['user_id'] ?? 0);
 $error = "";
+
+if (!function_exists('e')) {
+  function e($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+  }
+}
 
 function dtlocal_to_mysql($v) {
   $v = trim((string)$v);
@@ -45,13 +51,9 @@ $ts->bind_param("i", $user_id);
 $ts->execute();
 $tagRows = $ts->get_result()->fetch_all(MYSQLI_ASSOC);
 
-/**
- * AUTO SUGGEST DATA:
- * Build a mapping of recent (symbol|session)->strategy and (symbol)->strategy
- * from last 200 trades that have a strategy tag.
- */
-$suggestMap = [];   // key "SYMBOL|SESSION" => strategy
-$suggestSym = [];   // key "SYMBOL" => strategy
+/** Auto suggest data */
+$suggestMap = [];
+$suggestSym = [];
 
 $rec = $conn->prepare("
   SELECT t.symbol, t.session, tt.name AS strategy, t.entry_time
@@ -77,35 +79,35 @@ foreach ($recent as $r) {
 
   $k1 = $sym . "|" . $ses;
   if (!isset($suggestMap[$k1])) $suggestMap[$k1] = $str;
-
   if (!isset($suggestSym[$sym])) $suggestSym[$sym] = $str;
 }
 
+/** Defaults / sticky form values */
+$symbol = strtoupper(trim($_POST['symbol'] ?? ''));
+$market = trim($_POST['market'] ?? 'FX');
+$direction = (($_POST['direction'] ?? 'BUY') === 'SELL') ? 'SELL' : 'BUY';
+$session = trim($_POST['session'] ?? '');
+$entry_time_input = trim($_POST['entry_time'] ?? '');
+$entry_price_input = trim($_POST['entry_price'] ?? '');
+$stop_loss_input = trim($_POST['stop_loss'] ?? '');
+$take_profit_input = trim($_POST['take_profit'] ?? '');
+$position_size_input = trim($_POST['position_size'] ?? '');
+$risk_amount_input = trim($_POST['risk_amount'] ?? '');
+$setup = trim($_POST['setup'] ?? '');
+$legacy_tags = trim($_POST['legacy_tags'] ?? '');
+$notes_pre = trim($_POST['notes_pre'] ?? '');
+$strategy_existing = trim($_POST['strategy_existing'] ?? '');
+$strategy_new = trim($_POST['strategy_new'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $symbol = strtoupper(trim($_POST['symbol'] ?? ''));
-  $market = trim($_POST['market'] ?? 'FX');
-  $direction = ($_POST['direction'] ?? 'BUY') === 'SELL' ? 'SELL' : 'BUY';
-  $session = trim($_POST['session'] ?? '');
+  $entry_time = dtlocal_to_mysql($entry_time_input);
+  $entry_price = (float)($entry_price_input !== '' ? $entry_price_input : 0);
+  $stop_loss = (float)($stop_loss_input !== '' ? $stop_loss_input : 0);
 
-  $entry_time = dtlocal_to_mysql($_POST['entry_time'] ?? '');
-  $entry_price = (float)($_POST['entry_price'] ?? 0);
-  $stop_loss = (float)($_POST['stop_loss'] ?? 0);
+  $take_profit = ($take_profit_input === '') ? null : (float)$take_profit_input;
+  $position_size = ($position_size_input === '') ? null : (float)$position_size_input;
+  $risk_amount = (float)($risk_amount_input !== '' ? $risk_amount_input : 0);
 
-  $take_profit_raw = trim($_POST['take_profit'] ?? '');
-  $take_profit = ($take_profit_raw === '') ? null : (float)$take_profit_raw;
-
-  $position_size_raw = trim($_POST['position_size'] ?? '');
-  $position_size = ($position_size_raw === '') ? null : (float)$position_size_raw;
-
-  $risk_amount = (float)($_POST['risk_amount'] ?? 0);
-
-  $setup = trim($_POST['setup'] ?? '');
-  $legacy_tags = trim($_POST['legacy_tags'] ?? '');
-  $notes_pre = trim($_POST['notes_pre'] ?? '');
-
-  // Strategy tag (select OR create)
-  $strategy_existing = trim($_POST['strategy_existing'] ?? '');
-  $strategy_new = trim($_POST['strategy_new'] ?? '');
   $strategy_name = $strategy_new !== "" ? $strategy_new : $strategy_existing;
 
   if ($symbol === "" || $entry_time === "" || $entry_price == 0 || $stop_loss == 0 || $risk_amount <= 0) {
@@ -144,110 +146,361 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . "/partials/app_header.php";
 ?>
 
-<div class="card">
-  <h2>New Trade</h2>
-  <p class="small">Log with clarity. Risk first.</p>
+<style>
+.newtrade-wrap{ display:grid; gap:14px; }
 
-  <?php if ($error): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
+.page-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.page-head h1{
+  margin:0;
+  font-size:28px;
+  font-weight:900;
+}
+.page-head p{
+  margin:6px 0 0;
+  color:var(--muted);
+}
+.page-head-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
 
-  <form method="post" id="newTradeForm">
-    <div class="row">
-      <div class="col">
-        <label>Symbol</label>
-        <input id="symInput" name="symbol" placeholder="EURUSD, XAUUSD..." required>
+.form-shell{
+  display:grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap:14px;
+}
+
+.form-panel,
+.helper-panel,
+.notes-panel{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+}
+
+.form-panel,
+.helper-panel,
+.notes-panel{
+  padding:16px;
+}
+
+.panel-title{
+  margin:0 0 4px;
+  font-size:20px;
+  font-weight:900;
+}
+.panel-sub{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+  margin-bottom:14px;
+}
+
+.alert{
+  border:1px solid var(--border);
+  background:var(--pill);
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:14px;
+  font-weight:800;
+  margin-bottom:14px;
+}
+.alert.err{ color:#ef4444; }
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.field{
+  display:grid;
+  gap:6px;
+}
+.field label{
+  font-size:12px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.field input,
+.field select,
+.field textarea{
+  width:100%;
+  border:1px solid var(--border);
+  background:var(--bg);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 12px;
+  outline:none;
+}
+.field input,
+.field select{
+  min-height:44px;
+}
+.field textarea{
+  min-height:160px;
+  resize:vertical;
+}
+.field-help{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  line-height:1.5;
+}
+
+.span-2{ grid-column:span 2; }
+.span-4{ grid-column:1 / -1; }
+
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+
+.helper-list{
+  display:grid;
+  gap:10px;
+}
+.helper-item{
+  border:1px solid var(--border);
+  background:var(--pill);
+  border-radius:14px;
+  padding:12px 14px;
+}
+.helper-item-title{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+  color:var(--muted);
+  font-weight:900;
+  margin-bottom:6px;
+}
+.helper-item-text{
+  font-size:13px;
+  line-height:1.6;
+  font-weight:700;
+}
+
+.suggest-box{
+  margin-top:12px;
+  border:1px dashed var(--border);
+  background:var(--pill);
+  border-radius:14px;
+  padding:12px 14px;
+}
+.suggest-title{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+  color:var(--muted);
+  font-weight:900;
+  margin-bottom:6px;
+}
+#autoHint{
+  color:var(--text);
+  font-size:13px;
+  font-weight:700;
+}
+
+@media (max-width: 1100px){
+  .form-shell{ grid-template-columns:1fr; }
+}
+@media (max-width: 820px){
+  .form-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 600px){
+  .form-grid{ grid-template-columns:1fr; }
+  .span-2{ grid-column:auto; }
+}
+</style>
+
+<div class="newtrade-wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>New Trade</h1>
+      <p>Log with clarity. Risk first. Keep the record structured from entry.</p>
+    </div>
+
+    <div class="page-head-actions">
+      <a class="btn secondary" href="/trading-journal/log.php">Back to Log</a>
+    </div>
+  </div>
+
+  <div class="form-shell">
+
+    <div class="form-panel">
+      <h3 class="panel-title">Trade Entry</h3>
+      <div class="panel-sub">Capture the setup, execution details, and pre-trade context cleanly.</div>
+
+      <?php if ($error): ?>
+        <div class="alert err"><?= e($error) ?></div>
+      <?php endif; ?>
+
+      <form method="post" id="newTradeForm">
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="symInput">Symbol</label>
+            <input id="symInput" name="symbol" value="<?= e($symbol) ?>" placeholder="EURUSD, XAUUSD..." required>
+          </div>
+
+          <div class="field">
+            <label for="market">Market</label>
+            <select id="market" name="market">
+              <?php foreach (["FX","Crypto","Synthetics","Stocks","Indices","Commodities"] as $m): ?>
+                <option value="<?= e($m) ?>" <?= $market === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="direction">Direction</label>
+            <select id="direction" name="direction">
+              <option value="BUY" <?= $direction === 'BUY' ? 'selected' : '' ?>>BUY</option>
+              <option value="SELL" <?= $direction === 'SELL' ? 'selected' : '' ?>>SELL</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sessionSel">Session</label>
+            <select id="sessionSel" name="session">
+              <option value="">(optional)</option>
+              <?php foreach (["Asia","London","NY"] as $s): ?>
+                <option value="<?= e($s) ?>" <?= $session === $s ? 'selected' : '' ?>><?= e($s) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="field span-2">
+            <label for="entry_time">Entry Time</label>
+            <input id="entry_time" name="entry_time" type="datetime-local" value="<?= e($entry_time_input) ?>" required>
+          </div>
+
+          <div class="field">
+            <label for="entry_price">Entry Price</label>
+            <input id="entry_price" name="entry_price" type="number" step="0.00000001" value="<?= e($entry_price_input) ?>" required>
+          </div>
+
+          <div class="field">
+            <label for="stop_loss">Stop Loss</label>
+            <input id="stop_loss" name="stop_loss" type="number" step="0.00000001" value="<?= e($stop_loss_input) ?>" required>
+          </div>
+
+          <div class="field">
+            <label for="take_profit">Take Profit</label>
+            <input id="take_profit" name="take_profit" type="number" step="0.00000001" value="<?= e($take_profit_input) ?>" placeholder="optional">
+          </div>
+
+          <div class="field">
+            <label for="risk_amount">Risk Amount (1R)</label>
+            <input id="risk_amount" name="risk_amount" type="number" step="0.01" value="<?= e($risk_amount_input) ?>" required>
+            <div class="field-help">The monetary amount you are willing to lose if invalidated.</div>
+          </div>
+
+          <div class="field">
+            <label for="position_size">Position Size</label>
+            <input id="position_size" name="position_size" type="number" step="0.00000001" value="<?= e($position_size_input) ?>" placeholder="optional">
+          </div>
+
+          <div class="field">
+            <label for="setup">Setup</label>
+            <input id="setup" name="setup" value="<?= e($setup) ?>" placeholder="optional">
+          </div>
+
+          <div class="field span-2">
+            <label for="strategySel">Strategy (select)</label>
+            <select id="strategySel" name="strategy_existing">
+              <option value="">(none)</option>
+              <?php foreach ($tagRows as $t): ?>
+                <?php $nm = (string)$t['name']; ?>
+                <option value="<?= e($nm) ?>" <?= $strategy_existing === $nm ? 'selected' : '' ?>><?= e($nm) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="field span-2">
+            <label for="strategyNew">Or Create Strategy</label>
+            <input id="strategyNew" name="strategy_new" value="<?= e($strategy_new) ?>" placeholder="e.g. Sweep + MSS">
+          </div>
+
+          <div class="field span-4">
+            <label for="legacy_tags">Legacy Tags</label>
+            <input id="legacy_tags" name="legacy_tags" value="<?= e($legacy_tags) ?>" placeholder="free text (temporary)">
+          </div>
+
+          <div class="field span-4">
+            <label for="notes_pre">Pre-Trade Plan</label>
+            <textarea id="notes_pre" name="notes_pre" placeholder="Conditions, bias, invalidation..."><?= e($notes_pre) ?></textarea>
+          </div>
+
+        </div>
+
+        <div class="actions">
+          <button class="btn" type="submit">Save Trade</button>
+          <a class="btn secondary" href="/trading-journal/log.php">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    <div style="display:grid; gap:14px;">
+      <div class="helper-panel">
+        <h3 class="panel-title">Entry Guide</h3>
+        <div class="panel-sub">A clean record now makes review and analytics more useful later.</div>
+
+        <div class="helper-list">
+          <div class="helper-item">
+            <div class="helper-item-title">Risk First</div>
+            <div class="helper-item-text">Enter risk amount carefully. This becomes the base for your R tracking and later review quality.</div>
+          </div>
+
+          <div class="helper-item">
+            <div class="helper-item-title">Strategy Consistency</div>
+            <div class="helper-item-text">Use an existing strategy tag where possible so your analytics remain clean and comparable.</div>
+          </div>
+
+          <div class="helper-item">
+            <div class="helper-item-title">Pre-Trade Notes</div>
+            <div class="helper-item-text">Write what you saw before entry — bias, confirmation, invalidation, and execution plan.</div>
+          </div>
+        </div>
+
+        <div class="suggest-box">
+          <div class="suggest-title">Auto Suggest</div>
+          <div id="autoHint">Auto-suggest will appear when possible.</div>
+        </div>
       </div>
-      <div class="col">
-        <label>Market</label>
-        <select name="market">
-          <?php foreach (["FX","Crypto","Synthetics","Stocks","Indices","Commodities"] as $m): ?>
-            <option><?= e($m) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col">
-        <label>Direction</label>
-        <select name="direction">
-          <option value="BUY">BUY</option>
-          <option value="SELL">SELL</option>
-        </select>
-      </div>
-      <div class="col">
-        <label>Session</label>
-        <select id="sessionSel" name="session">
-          <option value="">(optional)</option>
-          <?php foreach (["Asia","London","NY"] as $s): ?>
-            <option value="<?= e($s) ?>"><?= e($s) ?></option>
-          <?php endforeach; ?>
-        </select>
+
+      <div class="notes-panel">
+        <h3 class="panel-title">What Good Logging Looks Like</h3>
+        <div class="panel-sub">Useful logs are specific, structured, and easy to review later.</div>
+
+        <div class="helper-list">
+          <div class="helper-item">
+            <div class="helper-item-title">Good Example</div>
+            <div class="helper-item-text">“London session sweep into bullish MSS. Entry taken after confirmation candle. Invalid below sweep low.”</div>
+          </div>
+
+          <div class="helper-item">
+            <div class="helper-item-title">Avoid</div>
+            <div class="helper-item-text">“I just felt like price was going up.”</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <div class="col">
-        <label>Entry time</label>
-        <input name="entry_time" type="datetime-local" required>
-      </div>
-      <div class="col">
-        <label>Entry price</label>
-        <input name="entry_price" type="number" step="0.00000001" required>
-      </div>
-      <div class="col">
-        <label>Stop loss</label>
-        <input name="stop_loss" type="number" step="0.00000001" required>
-      </div>
-      <div class="col">
-        <label>Take profit (optional)</label>
-        <input name="take_profit" type="number" step="0.00000001">
-      </div>
-    </div>
+  </div>
 
-    <div class="row">
-      <div class="col">
-        <label>Risk amount (1R)</label>
-        <input name="risk_amount" type="number" step="0.01" required>
-      </div>
-      <div class="col">
-        <label>Position size (optional)</label>
-        <input name="position_size" type="number" step="0.00000001">
-      </div>
-      <div class="col">
-        <label>Setup (optional)</label>
-        <input name="setup">
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col">
-        <label>Strategy (select)</label>
-        <select id="strategySel" name="strategy_existing">
-          <option value="">(none)</option>
-          <?php foreach ($tagRows as $t): ?>
-            <?php $nm = (string)$t['name']; ?>
-            <option value="<?= e($nm) ?>"><?= e($nm) ?></option>
-          <?php endforeach; ?>
-        </select>
-        <div class="small" id="autoHint" style="color:var(--muted)">Auto-suggest will appear when possible.</div>
-      </div>
-
-      <div class="col">
-        <label>Or create strategy (optional)</label>
-        <input id="strategyNew" name="strategy_new" placeholder="e.g. Sweep + MSS">
-      </div>
-
-      <div class="col">
-        <label>Legacy tags (optional)</label>
-        <input name="legacy_tags" placeholder="free text (temporary)">
-      </div>
-    </div>
-
-    <label>Pre-trade plan (optional)</label>
-    <textarea name="notes_pre" placeholder="Conditions, bias, invalidation..."></textarea>
-
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" type="submit">Save</button>
-      <a class="btn ghost" href="/trading-journal/log.php">Back to Log</a>
-    </div>
-  </form>
 </div>
 
 <script>
@@ -261,7 +514,6 @@ require_once __DIR__ . "/partials/app_header.php";
   const autoHint = document.getElementById("autoHint");
 
   function suggest(){
-    // If user typed a new strategy manually, do nothing.
     if (strategyNew.value.trim() !== "") {
       autoHint.textContent = "Manual strategy entry active.";
       return;
@@ -285,14 +537,12 @@ require_once __DIR__ . "/partials/app_header.php";
       return;
     }
 
-    // Try to select it in dropdown if it exists.
     const options = Array.from(strategySel.options).map(o => o.value);
     if (options.includes(picked)) {
       strategySel.value = picked;
       autoHint.textContent = "Suggested strategy: " + picked;
     } else {
-      autoHint.textContent = "Suggested strategy exists but not in list (create it): " + picked;
-      // We won't force-create; we just show hint.
+      autoHint.textContent = "Suggested strategy exists but is not in the dropdown yet: " + picked;
     }
   }
 

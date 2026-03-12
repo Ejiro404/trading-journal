@@ -1,14 +1,14 @@
 <?php
-// NXLOG app config (single source of truth)
+// NXLOG app config 
 $app = [
   "name" => "NXLOG Analytics",
   "version" => "v1.0-beta",
   "logo_text" => "NX",
-  "support_email" => "support@example.com", // change later
+  "support_email" => "support@example.com", 
   "social" => [
-    "instagram" => "#",
-    "x" => "#",
-    "threads" => "#",
-    "discord" => "#",
+  "instagram" => "https://www.instagram.com/nxloganalytics",
+  "x"         => "#",
+  "threads"   => "#",
+  "discord"   => "https://discord.gg/tyNntXG",
   ],
 ];
