@@ -223,7 +223,7 @@ require_once __DIR__ . "/partials/app_header.php";
 .history-table{
   width:100%;
   border-collapse:collapse;
-  min-width:980px;
+  min-width:1080px;
 }
 .history-table th,
 .history-table td{
@@ -268,6 +268,12 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:28px 18px;
   text-align:center;
   color:var(--muted);
+}
+
+.action-group{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
 }
 
 .pagination{
@@ -438,7 +444,10 @@ require_once __DIR__ . "/partials/app_header.php";
                   </span>
                 </td>
                 <td>
-                  <a class="btn secondary" href="/trading-journal/log_view.php?id=<?= (int)$trade['id'] ?>">View</a>
+                  <div class="action-group">
+                    <a class="btn secondary" href="/trading-journal/log_view.php?id=<?= (int)$trade['id'] ?>">View</a>
+                    <a class="btn" href="/trading-journal/log_edit.php?id=<?= (int)$trade['id'] ?>">Edit</a>
+                  </div>
                 </td>
               </tr>
             <?php endwhile; ?>

@@ -62,7 +62,13 @@ $outcomeClass = in_array($outcome, ['win', 'loss', 'breakeven'], true) ? $outcom
 $pnl = (float)($trade['pnl_amount'] ?? 0);
 $pnlClass = $pnl > 0 ? 'value-win' : ($pnl < 0 ? 'value-loss' : 'value-breakeven');
 
-$isClosed = !empty($trade['exit_time']) || !empty($trade['exit_price']) || $outcome !== 'breakeven' || $pnl != 0.0;
+$isClosed = (
+    !empty($trade['exit_time']) ||
+    $trade['exit_price'] !== null ||
+    $trade['pnl_amount'] !== null ||
+    $trade['r_multiple'] !== null
+);
+
 $tradeState = $isClosed ? 'Closed' : 'Open';
 $tradeStateClass = $isClosed ? 'closed' : 'open';
 
@@ -234,6 +240,14 @@ require_once __DIR__ . "/partials/app_header.php";
 
 .muted{ color:var(--muted); }
 
+.screenshot-image{
+  width:100%;
+  max-width:100%;
+  display:block;
+  border-radius:16px;
+  border:1px solid var(--border);
+}
+
 @media (max-width: 900px){
   .hero-grid,
   .details-grid{ grid-template-columns:1fr; }
@@ -258,6 +272,11 @@ require_once __DIR__ . "/partials/app_header.php";
     <div class="topbar-actions">
       <a href="/trading-journal/trade-history.php" class="btn secondary">← Back to History</a>
       <a href="/trading-journal/log_edit.php?id=<?= (int)$trade['id'] ?>" class="btn">Edit Trade</a>
+      <?php if (!$isClosed): ?>
+        <a href="/trading-journal/close_trade.php?id=<?= (int)$trade['id'] ?>" class="btn">Close Trade</a>
+      <?php else: ?>
+        <a href="/trading-journal/review_form.php?trade_id=<?= (int)$trade['id'] ?>" class="btn">Review Trade</a>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -371,6 +390,10 @@ require_once __DIR__ . "/partials/app_header.php";
           <div class="info-value"><?= e(fmt_money($trade['risk_amount'] ?? null)) ?></div>
         </div>
         <div class="info-row">
+          <div class="info-label">Exit Reason</div>
+          <div class="info-value"><?= e($trade['exit_reason'] ?? '-') ?></div>
+        </div>
+        <div class="info-row">
           <div class="info-label">Setup</div>
           <div class="info-value"><?= e($trade['setup'] ?? '-') ?></div>
         </div>
@@ -413,7 +436,7 @@ require_once __DIR__ . "/partials/app_header.php";
       <h3>Trade Notes</h3>
       <div class="note-box">
         <div class="note-block">
-          <div class="note-section-title">Pre-trade Notes</div>
+          <div class="note-section-title">Pre-Trade Notes</div>
           <div>
             <?php if (!empty($trade['notes_pre'])): ?>
               <?= nl2br(e($trade['notes_pre'])) ?>
@@ -424,7 +447,7 @@ require_once __DIR__ . "/partials/app_header.php";
         </div>
 
         <div class="note-block">
-          <div class="note-section-title">Post-trade Notes</div>
+          <div class="note-section-title">Post-Trade Notes</div>
           <div>
             <?php if (!empty($trade['notes_post'])): ?>
               <?= nl2br(e($trade['notes_post'])) ?>
@@ -448,9 +471,13 @@ require_once __DIR__ . "/partials/app_header.php";
     </div>
 
     <div class="info-card">
-      <h3>Screenshots</h3>
+      <h3>Trade Screenshot</h3>
       <div class="screenshot-box">
-        <span class="muted">Screenshot upload/display will plug in here in the next stage.</span>
+        <?php if (!empty($trade['screenshot_path'])): ?>
+          <img class="screenshot-image" src="/trading-journal/<?= e($trade['screenshot_path']) ?>" alt="Trade screenshot">
+        <?php else: ?>
+          <span class="muted">No screenshot attached yet.</span>
+        <?php endif; ?>
       </div>
     </div>
 
