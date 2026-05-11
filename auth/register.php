@@ -2,7 +2,7 @@
 require_once __DIR__ . "/../config/db.php";
 require_once __DIR__ . "/../config/auth.php";
 
-$name = $email = "";
+$first_name = $last_name = $username = $email = "";
 $error = "";
 
 if (!function_exists('e')) {
@@ -12,28 +12,37 @@ if (!function_exists('e')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $name = trim($_POST['name'] ?? '');
-  $email = strtolower(trim($_POST['email'] ?? ''));
-  $password = (string)($_POST['password'] ?? '');
+  $first_name = trim($_POST['first_name'] ?? '');
+  $last_name  = trim($_POST['last_name'] ?? '');
+  $username   = strtolower(trim($_POST['username'] ?? ''));
+  $email      = strtolower(trim($_POST['email'] ?? ''));
+  $password   = (string)($_POST['password'] ?? '');
+  $name       = trim($first_name . ' ' . $last_name);
 
-  if ($name === "" || $email === "" || $password === "") {
+  if ($first_name === "" || $last_name === "" || $username === "" || $email === "" || $password === "") {
     $error = "All fields are required.";
+  } elseif (!preg_match('/^[a-z0-9_]{3,20}$/', $username)) {
+    $error = "Username must be 3–20 characters using lowercase letters, numbers, or underscore.";
   } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $error = "Invalid email address.";
   } elseif (strlen($password) < 6) {
     $error = "Password must be at least 6 characters.";
   } else {
-    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->bind_param("s", $email);
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1");
+    $stmt->bind_param("ss", $email, $username);
     $stmt->execute();
-    $stmt->store_result();
+    $existing = $stmt->get_result()->fetch_assoc();
 
-    if ($stmt->num_rows > 0) {
-      $error = "Email already exists. Please login.";
+    if ($existing) {
+      $error = "An account with this email or username already exists. Please sign in instead.";
     } else {
       $hash = password_hash($password, PASSWORD_DEFAULT);
-      $stmt2 = $conn->prepare("INSERT INTO users (name, email, password_hash) VALUES (?,?,?)");
-      $stmt2->bind_param("sss", $name, $email, $hash);
+
+      $stmt2 = $conn->prepare("
+        INSERT INTO users (first_name, last_name, username, name, email, password_hash)
+        VALUES (?,?,?,?,?,?)
+      ");
+      $stmt2->bind_param("ssssss", $first_name, $last_name, $username, $name, $email, $hash);
       $stmt2->execute();
 
       $new_user_id = (int)$conn->insert_id;
@@ -49,14 +58,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           "Closed too early",
           "Ignored higher timeframe bias"
         ];
+
         $rstmt = $conn->prepare("INSERT INTO trade_rules (user_id, name, is_active) VALUES (?, ?, 1)");
+
         foreach ($defaults as $ruleName) {
           $rstmt->bind_param("is", $new_user_id, $ruleName);
           $rstmt->execute();
         }
       } catch (Throwable $e) {}
 
-      header("Location: /trading-journal/auth/login.php");
+      session_regenerate_id(true);
+
+      $_SESSION['user_id'] = $new_user_id;
+      $_SESSION['user_name'] = $name;
+      $_SESSION['user_email'] = $email;
+
+      header("Location: /trading-journal/dashboard.php");
       exit;
     }
   }
@@ -100,25 +117,76 @@ $social = [
       top:16px;
       right:16px;
       z-index:10;
-      border:1px solid var(--border);
-      background:var(--pill);
-      color:var(--text);
-      width:44px;
-      height:44px;
+      width:46px;
+      height:46px;
       border-radius:14px;
-      cursor:pointer;
-      font-weight:900;
-      line-height:1;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.04);
+      backdrop-filter:blur(12px);
+      color:var(--text);
       display:flex;
       align-items:center;
       justify-content:center;
-    }
-    .theme-corner:hover{
-      box-shadow:var(--shadow);
-      transform:translateY(-1px);
+      cursor:pointer;
+      transition:
+        background .2s ease,
+        border-color .2s ease,
+        transform .18s ease,
+        box-shadow .2s ease;
     }
 
-    .auth-password{ position:relative; }
+    .theme-corner:hover{
+      transform:translateY(-1px);
+      box-shadow:var(--shadow);
+      background:rgba(255,255,255,0.07);
+    }
+
+    .theme-corner:active{
+      transform:translateY(0);
+    }
+
+    .theme-icon{
+      position:absolute;
+      width:19px;
+      height:19px;
+      transition:
+        opacity .2s ease,
+        transform .25s ease;
+    }
+
+    .sun-icon{
+      opacity:0;
+      transform:rotate(-90deg) scale(.7);
+    }
+
+    .moon-icon{
+      opacity:1;
+      transform:rotate(0deg) scale(1);
+    }
+
+    html.dark .sun-icon{
+      opacity:1;
+      transform:rotate(0deg) scale(1);
+    }
+
+    html.dark .moon-icon{
+      opacity:0;
+      transform:rotate(90deg) scale(.7);
+    }
+
+    .auth-input{
+      box-sizing:border-box;
+      font-size:16px;
+    }
+
+    .auth-password{
+      position:relative;
+    }
+
+    .auth-password .auth-input{
+      padding-right:64px;
+    }
+
     .auth-eye{
       position:absolute;
       right:10px;
@@ -134,10 +202,20 @@ $social = [
       display:flex;
       align-items:center;
       justify-content:center;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+
+    .auth-eye:hover{
+      transform:translateY(-50%) scale(1.02);
+    }
+
+    .auth-btn{
+      margin-top:18px;
     }
 
     .register-shell{
       min-height:100vh;
+      min-height:100svh;
       display:flex;
       flex-direction:column;
     }
@@ -263,6 +341,12 @@ $social = [
       gap:10px;
     }
 
+    .register-name-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
     .register-meta{
       display:flex;
       justify-content:space-between;
@@ -281,7 +365,7 @@ $social = [
 
     .register-footer-wrap{
       padding:10px 20px 20px;
-      margin-top:0;
+      margin-top:auto;
     }
 
     .register-footer-inner{
@@ -289,23 +373,114 @@ $social = [
       margin:0 auto;
     }
 
+    .username-help{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+      line-height:1.5;
+    }
+
     @media (max-width: 900px) {
+      .register-top{
+        padding:16px 16px 0;
+      }
+
       .register-main{
+        width:100%;
         grid-template-columns:1fr;
-        gap:18px;
-        padding-top:16px;
+        gap:16px;
+        padding:16px;
       }
 
       .register-feature-grid{
         grid-template-columns:1fr;
       }
 
+      .register-side-panel{
+        padding:20px;
+        border-radius:22px;
+      }
+
       .register-hero-title{
         font-size:30px;
+        line-height:1.08;
+      }
+
+      .auth-card.register-card-wrap{
+        border-radius:22px;
+        padding:22px;
+      }
+
+      .theme-corner{
+        top:14px;
+        right:14px;
+        width:42px;
+        height:42px;
+        border-radius:13px;
+      }
+
+      .auth-title{
+        padding-right:48px;
       }
 
       .register-footer-wrap{
         padding-top:14px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .register-top-inner{
+        justify-content:center;
+      }
+
+      .register-main{
+        padding:14px;
+      }
+
+      .register-side-panel{
+        padding:18px;
+      }
+
+      .register-hero-title{
+        font-size:26px;
+      }
+
+      .register-hero-sub{
+        font-size:13px;
+      }
+
+      .register-feature{
+        padding:13px;
+      }
+
+      .register-note{
+        font-size:12px;
+      }
+
+      .auth-card.register-card-wrap{
+        padding:20px;
+      }
+
+      .register-name-grid{
+        grid-template-columns:1fr;
+        gap:0;
+      }
+
+      .register-meta{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:6px;
+      }
+
+      .register-footer-wrap{
+        padding:8px 14px 18px;
+      }
+
+      .auth-footer{
+        flex-direction:column;
+        gap:12px;
+        text-align:center;
       }
     }
   </style>
@@ -365,7 +540,26 @@ $social = [
 
       <section class="auth-wrap" style="padding:0; width:100%; margin:0;">
         <div class="auth-card register-card-wrap" style="width:100%;">
-          <button class="theme-corner" type="button" id="themeBtn" aria-label="Toggle theme">🌙</button>
+          <button class="theme-corner" type="button" id="themeBtn" aria-label="Toggle theme">
+            <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2V4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 20V22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M19.78 4.22L17.66 6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6.34 17.66L4.22 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M19.78 19.78L17.66 17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6.34 6.34L4.22 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+
+            <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3c0 .2-.1.5-.1.8A7.5 7.5 0 0 0 18.6 11c.8 0 1.6-.1 2.4-.4Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"/>
+            </svg>
+          </button>
 
           <div class="register-card-inner">
             <h2 class="auth-title">Create your <?= e($appName) ?> account</h2>
@@ -376,8 +570,29 @@ $social = [
             <?php endif; ?>
 
             <form method="post" autocomplete="on">
-              <label class="auth-label">Name</label>
-              <input class="auth-input" name="name" value="<?= e($name) ?>" placeholder="Your name" required>
+              <div class="register-name-grid">
+                <div>
+                  <label class="auth-label">First Name</label>
+                  <input class="auth-input" name="first_name" value="<?= e($first_name) ?>" placeholder="First name" required>
+                </div>
+
+                <div>
+                  <label class="auth-label">Last Name</label>
+                  <input class="auth-input" name="last_name" value="<?= e($last_name) ?>" placeholder="Last name" required>
+                </div>
+              </div>
+
+              <label class="auth-label" style="margin-top:14px">Username</label>
+              <input
+                class="auth-input"
+                name="username"
+                value="<?= e($username) ?>"
+                placeholder="e.g. nx_trader"
+                required
+              >
+              <div class="username-help">
+                Use 3–20 lowercase letters, numbers, or underscore.
+              </div>
 
               <label class="auth-label" style="margin-top:14px">Email</label>
               <input class="auth-input" name="email" type="email" value="<?= e($email) ?>" placeholder="you@email.com" required>
@@ -463,16 +678,10 @@ $social = [
 
 <script>
   const themeBtn = document.getElementById("themeBtn");
-  function syncThemeIcon(){
-    const isDark = document.documentElement.classList.contains("dark");
-    themeBtn.textContent = isDark ? "☀️" : "🌙";
-  }
-  syncThemeIcon();
 
   themeBtn.addEventListener("click", () => {
     const isDark = document.documentElement.classList.toggle("dark");
     localStorage.setItem("tj_theme", isDark ? "dark" : "light");
-    syncThemeIcon();
   });
 
   const pw = document.getElementById("password");

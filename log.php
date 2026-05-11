@@ -145,7 +145,12 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.log-wrap{ display:grid; gap:14px; }
+.log-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+}
 
 .page-head{
   display:flex;
@@ -154,14 +159,19 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
 
 .panel,
@@ -170,9 +180,12 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
 
-.panel{ padding:16px; }
+.panel{
+  padding:16px;
+}
 
 .helper-note{
   margin-top:8px;
@@ -187,15 +200,20 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   margin-top:14px;
 }
+
 .filter-field{
   display:grid;
   gap:6px;
+  min-width:0;
 }
+
 .filter-field label{
   font-size:12px;
   font-weight:800;
   color:var(--muted);
+  margin:0;
 }
+
 .filter-field input,
 .filter-field select{
   width:100%;
@@ -221,6 +239,7 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   margin-top:14px;
 }
+
 .chip{
   display:inline-flex;
   align-items:center;
@@ -235,10 +254,12 @@ require_once __DIR__ . "/partials/app_header.php";
   text-decoration:none;
   transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
+
 .chip:hover{
   box-shadow:var(--shadow);
   transform:translateY(-1px);
 }
+
 .chip.active{
   border-color:rgba(109,94,252,.45);
   box-shadow:0 0 0 4px rgba(109,94,252,.10);
@@ -252,11 +273,13 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   padding:16px 16px 0;
 }
+
 .table-head h3{
   margin:0;
   font-size:20px;
   font-weight:900;
 }
+
 .table-head .sub{
   color:var(--muted);
   font-size:13px;
@@ -264,21 +287,27 @@ require_once __DIR__ . "/partials/app_header.php";
 }
 
 .table-wrap{
-  overflow:auto;
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
   padding:12px 0 0;
 }
+
 .log-table{
   width:100%;
   border-collapse:collapse;
   min-width:920px;
 }
+
 .log-table th,
 .log-table td{
   padding:14px 16px;
   text-align:left;
   border-bottom:1px solid var(--border);
   vertical-align:middle;
+  white-space:nowrap;
 }
+
 .log-table th{
   font-size:12px;
   text-transform:uppercase;
@@ -286,6 +315,7 @@ require_once __DIR__ . "/partials/app_header.php";
   color:var(--muted);
   font-weight:900;
 }
+
 .log-table tr:last-child td{
   border-bottom:none;
 }
@@ -300,7 +330,9 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:6px 10px;
   font-size:12px;
   font-weight:900;
+  white-space:nowrap;
 }
+
 .pill.buy{ color:#16a34a; }
 .pill.sell{ color:#ef4444; }
 .pill.good{ color:#16a34a; }
@@ -319,7 +351,9 @@ require_once __DIR__ . "/partials/app_header.php";
   font-size:12px;
   font-weight:800;
   text-decoration:none;
+  white-space:nowrap;
 }
+
 .strategy-chip:hover{
   box-shadow:var(--shadow);
 }
@@ -328,16 +362,221 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:26px 18px 22px;
   text-align:center;
 }
+
 .empty-state p{
   margin:0 0 14px;
   color:var(--muted);
 }
 
-@media (max-width: 1100px){
-  .filters-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+.mobile-log-list{
+  display:none;
 }
-@media (max-width: 720px){
-  .filters-grid{ grid-template-columns:1fr; }
+
+@media (max-width:1100px){
+  .filters-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media (max-width:720px){
+  .log-wrap{
+    gap:12px;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+  }
+
+  .page-head .btn{
+    width:100%;
+    min-height:38px;
+    font-size:12px;
+  }
+
+  .panel{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .filters-grid{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .filter-field label{
+    font-size:10px;
+  }
+
+  .filter-field input,
+  .filter-field select{
+    min-height:38px;
+    padding:8px 10px;
+    font-size:16px;
+    border-radius:12px;
+  }
+
+  .filter-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .filter-actions .btn{
+    width:100%;
+    min-height:36px;
+    font-size:12px;
+    padding:8px 10px;
+  }
+
+  .chips{
+    gap:7px;
+    overflow-x:auto;
+    flex-wrap:nowrap;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .chip{
+    flex:0 0 auto;
+    font-size:11px;
+    padding:7px 10px;
+  }
+
+  .table-panel{
+    background:transparent;
+    border:0;
+    box-shadow:none;
+  }
+
+  .table-head{
+    padding:0;
+  }
+
+  .table-head h3{
+    font-size:18px;
+  }
+
+  .table-head .sub{
+    font-size:11px;
+  }
+
+  .table-wrap{
+    display:none;
+  }
+
+  .mobile-log-list{
+    display:grid;
+    gap:10px;
+    margin-top:10px;
+  }
+
+  .mobile-log-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:var(--shadow);
+    padding:13px;
+  }
+
+  .mobile-log-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .mobile-symbol{
+    font-size:17px;
+    line-height:1.05;
+    font-weight:950;
+    letter-spacing:-.03em;
+  }
+
+  .mobile-time{
+    margin-top:4px;
+    font-size:10px;
+    color:var(--muted);
+    font-weight:800;
+  }
+
+  .mobile-r{
+    text-align:right;
+    white-space:nowrap;
+  }
+
+  .mobile-pill-row{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+
+  .mobile-log-meta{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .mobile-meta-box{
+    border:1px solid var(--border);
+    background:var(--pill);
+    border-radius:14px;
+    padding:9px;
+    min-width:0;
+  }
+
+  .mobile-meta-label{
+    font-size:10px;
+    color:var(--muted);
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+
+  .mobile-meta-value{
+    margin-top:4px;
+    font-size:12px;
+    font-weight:900;
+    word-break:break-word;
+  }
+
+  .mobile-card-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .mobile-card-actions .btn{
+    width:100%;
+    min-height:36px;
+    font-size:12px;
+    padding:8px 10px;
+  }
+}
+
+@media (max-width:390px){
+  .filters-grid{
+    grid-template-columns:1fr;
+  }
+
+  .filter-actions{
+    grid-template-columns:1fr;
+  }
+
+  .mobile-log-meta{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -402,7 +641,7 @@ require_once __DIR__ . "/partials/app_header.php";
         </div>
 
         <div class="filter-actions">
-          <button class="btn" type="submit">Apply Filters</button>
+          <button class="btn" type="submit">Apply</button>
           <a class="btn secondary" href="/trading-journal/log.php">Reset</a>
         </div>
       </div>
@@ -484,12 +723,8 @@ require_once __DIR__ . "/partials/app_header.php";
               <tr>
                 <td><?= e(fmt_dt($r['entry_time'])) ?></td>
                 <td><strong><?= e($r['symbol']) ?></strong></td>
-                <td>
-                  <span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span>
-                </td>
-                <td>
-                  <a class="strategy-chip" href="<?= e($linkStr) ?>"><?= e($strategy) ?></a>
-                </td>
+                <td><span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span></td>
+                <td><a class="strategy-chip" href="<?= e($linkStr) ?>"><?= e($strategy) ?></a></td>
                 <td><?= e(fmt_money($r['risk_amount'])) ?></td>
                 <td>
                   <?php if ($rm === null): ?>
@@ -514,6 +749,63 @@ require_once __DIR__ . "/partials/app_header.php";
             <?php endforeach; ?>
           </tbody>
         </table>
+      </div>
+
+      <div class="mobile-log-list">
+        <?php foreach ($rows as $r): ?>
+          <?php
+            $rm = $r['r_multiple'];
+            $strategy = $r['strategy'] ? (string)$r['strategy'] : "—";
+            $linkStr = ($strategy === "—")
+              ? ("/trading-journal/log.php?" . http_build_query($base + ['strategy' => '__none__']))
+              : ("/trading-journal/log.php?" . http_build_query($base + ['strategy' => $strategy]));
+
+            $dir = strtoupper((string)$r['direction']);
+            $dirClass = $dir === 'BUY' ? 'buy' : 'sell';
+            $rClass = ($rm === null) ? 'pending' : (((float)$rm >= 0) ? 'good' : 'bad');
+            $rText = ($rm === null) ? 'Open' : number_format((float)$rm, 2) . 'R';
+          ?>
+          <article class="mobile-log-card">
+            <div class="mobile-log-top">
+              <div>
+                <div class="mobile-symbol"><?= e($r['symbol']) ?></div>
+                <div class="mobile-time"><?= e(fmt_dt($r['entry_time'])) ?></div>
+              </div>
+
+              <div class="mobile-r">
+                <span class="pill <?= e($rClass) ?>"><?= e($rText) ?></span>
+              </div>
+            </div>
+
+            <div class="mobile-pill-row">
+              <span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span>
+
+              <?php if ((int)$r['is_reviewed'] === 1): ?>
+                <span class="pill good">Reviewed</span>
+              <?php else: ?>
+                <span class="pill pending">Pending</span>
+              <?php endif; ?>
+            </div>
+
+            <div class="mobile-log-meta">
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Strategy</div>
+                <div class="mobile-meta-value">
+                  <a class="strategy-chip" href="<?= e($linkStr) ?>"><?= e($strategy) ?></a>
+                </div>
+              </div>
+
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Risk</div>
+                <div class="mobile-meta-value"><?= e(fmt_money($r['risk_amount'])) ?></div>
+              </div>
+            </div>
+
+            <div class="mobile-card-actions">
+              <a class="btn secondary" href="/trading-journal/log_view.php?id=<?= (int)$r['id'] ?>">Open Trade</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
       </div>
     <?php endif; ?>
   </div>

@@ -5,7 +5,6 @@ require_login();
 
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 
-/** Helpers */
 function clamp01($x){ return max(0, min(1, $x)); }
 function money($n){
   $sym = "$";
@@ -14,7 +13,6 @@ function money($n){
   return $sign . $sym . number_format(abs($n), 2);
 }
 
-/** KPI stats */
 $stmt = $conn->prepare("
   SELECT
     COUNT(*) AS total,
@@ -43,7 +41,6 @@ $gross_win_r   = (float)($stats['gross_win_r'] ?? 0);
 $gross_loss_r  = (float)($stats['gross_loss_r'] ?? 0);
 $profit_factor = $gross_loss_r > 0 ? ($gross_win_r / $gross_loss_r) : 0;
 
-/** Unreviewed CLOSED trades count */
 $unrevStmt = $conn->prepare("
   SELECT COUNT(*) AS c
   FROM trades
@@ -55,7 +52,6 @@ $unrevStmt->bind_param("i", $user_id);
 $unrevStmt->execute();
 $unrev = (int)($unrevStmt->get_result()->fetch_assoc()['c'] ?? 0);
 
-/** Rule adherence avg */
 $avg_rules_score = null;
 try {
   $rs = $conn->prepare("
@@ -72,7 +68,6 @@ try {
   $avg_rules_score = null;
 }
 
-/** Month range for line chart */
 $year = (int)date("Y");
 $month = (int)date("n");
 $monthStart = sprintf("%04d-%02d-01 00:00:00", $year, $month);
@@ -101,7 +96,6 @@ foreach ($dailyRows as $r) {
   $lineValues[] = (float)$r['net_r'];
 }
 
-/** Top rule breaks */
 $topBreaks = [];
 try {
   $tb = $conn->prepare("
@@ -123,7 +117,6 @@ try {
   $topBreaks = [];
 }
 
-/** Discipline Score */
 $ruleAdh01 = ($avg_rules_score === null) ? null : clamp01($avg_rules_score / 100.0);
 $pf01  = ($profit_factor <= 0) ? 0 : clamp01($profit_factor / 2.0);
 $exp01 = clamp01(($expectancy + 1.0) / 2.0);
@@ -144,7 +137,6 @@ $radarValues = [
   (int)round($pf01 * 100)
 ];
 
-/** Monthly Calendar */
 $ym = preg_replace('/[^0-9\-]/', '', ($_GET['ym'] ?? date('Y-m')));
 if (!preg_match('/^\d{4}\-\d{2}$/', $ym)) $ym = date('Y-m');
 
@@ -221,24 +213,37 @@ require_once __DIR__ . "/partials/app_header.php";
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-.dashboard-wrap{ display:grid; gap:14px; }
+.dashboard-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+  overflow:visible;
+}
 
 .page-head{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
+  gap:14px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
-  font-size:28px;
+  font-size:30px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-0.03em;
 }
+
 .page-head p{
-  margin:6px 0 0;
+  margin:8px 0 0;
   color:var(--muted);
+  max-width:760px;
+  line-height:1.7;
 }
+
 .page-head-actions{
   display:flex;
   gap:10px;
@@ -250,6 +255,7 @@ require_once __DIR__ . "/partials/app_header.php";
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:14px;
 }
+
 .kpi-card,
 .panel,
 .chart-card,
@@ -259,39 +265,49 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
+
 .kpi-card{ padding:16px; }
+
 .kpi-head{
   display:flex;
   justify-content:space-between;
   gap:12px;
   align-items:flex-start;
 }
+
 .kpi-card h3{
   margin:0 0 8px;
-  font-size:13px;
+  font-size:12px;
   color:var(--muted);
-  font-weight:800;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
 }
+
 .kpi-value{
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
-  line-height:1.1;
+  word-break:break-word;
 }
+
 .kpi-sub{
   margin-top:6px;
   color:var(--muted);
   font-size:12px;
   font-weight:700;
+  line-height:1.45;
 }
 
 .section-title{
-  font-size:13px;
+  font-size:12px;
   text-transform:uppercase;
-  letter-spacing:.05em;
+  letter-spacing:.06em;
   color:var(--muted);
   font-weight:900;
-  margin-top:4px;
+  margin-top:2px;
 }
 
 .three-grid{
@@ -299,18 +315,22 @@ require_once __DIR__ . "/partials/app_header.php";
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:14px;
 }
+
 .chart-card,
 .panel{ padding:16px; }
 
 .card-title{
   margin:0 0 10px;
   font-size:19px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .card-sub{
   color:var(--muted);
   font-size:12px;
   font-weight:700;
+  line-height:1.5;
 }
 
 .metric-head{
@@ -320,17 +340,19 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .metric-value{
   font-size:30px;
+  line-height:1.05;
   font-weight:900;
-  line-height:1.1;
 }
 
 .list{
   display:grid;
   gap:10px;
-  margin-top:8px;
+  margin-top:10px;
 }
+
 .list-row{
   display:flex;
   justify-content:space-between;
@@ -341,13 +363,16 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:14px;
   padding:12px 14px;
 }
+
 .list-title{
   font-weight:800;
+  line-height:1.4;
 }
 
 .badge{
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   gap:6px;
   border:1px solid var(--border);
   background:var(--pill);
@@ -355,47 +380,60 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:6px 10px;
   font-size:12px;
   font-weight:900;
+  white-space:nowrap;
 }
+
 .badge.good{ color:#16a34a; }
 .badge.bad{ color:#ef4444; }
 
 .cta-panel{
-  padding:18px;
+  padding:16px;
   display:flex;
   justify-content:space-between;
   align-items:center;
   gap:14px;
   flex-wrap:wrap;
 }
+
 .cta-left h3{
   margin:0 0 6px;
-  font-size:20px;
+  font-size:19px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .cta-left p{
   margin:0;
   color:var(--muted);
+  line-height:1.5;
 }
 
-.monthly-card{ padding:16px; }
+.monthly-card{
+  padding:16px;
+  overflow:hidden;
+}
+
 .monthly-head{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
+  gap:14px;
   flex-wrap:wrap;
 }
+
 .monthly-left{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.monthly-nav{
   display:flex;
   align-items:center;
   gap:10px;
   flex-wrap:wrap;
 }
-.monthly-nav{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
+
 .monthly-nav a{
   display:inline-flex;
   align-items:center;
@@ -409,10 +447,12 @@ require_once __DIR__ . "/partials/app_header.php";
   text-decoration:none;
   color:var(--text);
 }
+
 .monthly-title{
   font-weight:900;
   font-size:16px;
 }
+
 .monthly-stats{
   display:flex;
   gap:10px;
@@ -421,14 +461,24 @@ require_once __DIR__ . "/partials/app_header.php";
   color:var(--muted);
   font-size:12px;
   font-weight:800;
+  line-height:1.6;
 }
+
 .monthly-stats b{ color:var(--text); }
+
+.monthly-scroll{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:4px;
+}
 
 .monthly-grid{
   display:grid;
-  grid-template-columns: repeat(7, minmax(0,1fr));
+  grid-template-columns:repeat(7,minmax(0,1fr));
   gap:10px;
 }
+
 .monthly-dow{
   font-size:12px;
   font-weight:900;
@@ -441,21 +491,18 @@ require_once __DIR__ . "/partials/app_header.php";
   text-decoration:none;
   color:inherit;
 }
+
 .daycell{
-  min-height:90px;
+  min-height:88px;
   border:1px solid var(--border);
   border-radius:14px;
   background:var(--card);
   padding:10px;
   position:relative;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
-.daycell:hover{
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
-  border-color: rgba(109,94,252,.35);
-}
-.daycell.muted{ opacity:.45; }
+
+.daycell.muted{ opacity:.42; }
+
 .daynum{
   position:absolute;
   top:8px;
@@ -464,12 +511,14 @@ require_once __DIR__ . "/partials/app_header.php";
   color:var(--muted);
   font-weight:900;
 }
+
 .daymeta{
-  margin-top:22px;
+  margin-top:24px;
   display:flex;
   flex-direction:column;
   gap:6px;
 }
+
 .daypill{
   display:inline-flex;
   align-items:center;
@@ -480,23 +529,232 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:12px;
   font-weight:900;
   width:max-content;
+  max-width:100%;
   font-size:12px;
 }
+
 .daypill.good{ color:#16a34a; }
 .daypill.bad{ color:#ef4444; }
 
-.chart-box-sm{ height:220px; }
-.chart-box-md{ height:260px; }
-.chart-box-lg{ height:240px; }
+.chart-box-sm{ height:210px; position:relative; }
+.chart-box-md{ height:250px; position:relative; }
+.chart-box-lg{ height:240px; position:relative; }
 
-@media (max-width: 1100px){
+.chart-box-sm canvas,
+.chart-box-md canvas,
+.chart-box-lg canvas{
+  width:100% !important;
+  height:100% !important;
+}
+
+@media (max-width:1200px){
   .kpi-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .three-grid{ grid-template-columns:1fr; }
 }
-@media (max-width: 720px){
-  .kpi-grid{ grid-template-columns:1fr; }
-  .monthly-grid{ gap:8px; }
-  .daycell{ min-height:82px; }
+
+/* Mobile app dashboard */
+@media (max-width:720px){
+  .dashboard-wrap{
+    gap:12px;
+    padding-bottom:4px;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+    line-height:1.05;
+  }
+
+  .page-head p{
+    margin-top:6px;
+    font-size:12px;
+    line-height:1.45;
+    max-width:100%;
+  }
+
+  .page-head-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    width:100%;
+  }
+
+  .page-head-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+    border-radius:12px;
+  }
+
+  .kpi-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+
+  .kpi-card{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .kpi-head{
+    display:block;
+  }
+
+  .kpi-card h3{
+    font-size:10px;
+    margin-bottom:6px;
+    letter-spacing:.08em;
+  }
+
+  .kpi-value{
+    font-size:22px;
+  }
+
+  .kpi-sub{
+    font-size:10px;
+    margin-top:5px;
+  }
+
+  .kpi-card .badge{
+    margin-top:10px;
+    font-size:10px;
+    padding:5px 8px;
+    width:max-content;
+    max-width:100%;
+  }
+
+  .kpi-card .kpi-head > div[style*="width:74px"]{
+    width:52px !important;
+    height:52px !important;
+    margin-top:10px;
+  }
+
+  .section-title{
+    font-size:10px;
+    margin:2px 0 0;
+  }
+
+  .chart-card,
+  .panel,
+  .monthly-card,
+  .cta-panel{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .card-title{
+    font-size:16px;
+    margin-bottom:8px;
+  }
+
+  .metric-value{
+    font-size:22px;
+  }
+
+  .card-sub{
+    font-size:10px;
+  }
+
+  .badge{
+    font-size:10px;
+    padding:5px 8px;
+  }
+
+  .cta-panel{
+    display:grid;
+    gap:10px;
+  }
+
+  .cta-left h3{
+    font-size:16px;
+  }
+
+  .cta-left p{
+    font-size:12px;
+  }
+
+  .cta-panel > div:last-child{
+    display:grid !important;
+    grid-template-columns:1fr 1fr;
+    width:100%;
+    gap:8px !important;
+  }
+
+  .cta-panel .btn{
+    width:100%;
+    min-height:36px;
+    font-size:12px;
+  }
+
+  .chart-box-sm{ height:165px; }
+  .chart-box-md{ height:190px; }
+  .chart-box-lg{ height:190px; }
+
+  .monthly-title{
+    font-size:14px;
+  }
+
+  .monthly-nav{
+    gap:8px;
+  }
+
+  .monthly-nav a{
+    min-width:34px;
+    height:34px;
+    border-radius:11px;
+  }
+
+  .monthly-stats{
+    font-size:10px;
+    gap:6px;
+  }
+
+  .monthly-scroll{
+    margin-top:10px;
+  }
+
+  .monthly-grid{
+    min-width:560px;
+    gap:7px;
+  }
+
+  .monthly-dow{
+    font-size:10px;
+  }
+
+  .daycell{
+    min-height:74px;
+    padding:8px;
+    border-radius:12px;
+  }
+
+  .daynum{
+    font-size:10px;
+  }
+
+  .daymeta{
+    margin-top:20px;
+    gap:4px;
+  }
+
+  .daypill{
+    font-size:10px;
+    padding:5px 7px;
+    border-radius:10px;
+  }
+}
+
+@media (max-width:390px){
+  .page-head h1{ font-size:20px; }
+  .kpi-value{ font-size:20px; }
+  .chart-box-sm{ height:155px; }
+  .chart-box-md{ height:180px; }
+  .chart-box-lg{ height:180px; }
 }
 </style>
 
@@ -510,7 +768,7 @@ require_once __DIR__ . "/partials/app_header.php";
 
     <div class="page-head-actions">
       <a class="btn secondary" href="/trading-journal/trade-history.php">Trade History</a>
-      <a class="btn" href="/trading-journal/review_queue.php">Open Review Queue</a>
+      <a class="btn" href="/trading-journal/review_queue.php">Review Queue</a>
     </div>
   </div>
 
@@ -520,7 +778,7 @@ require_once __DIR__ . "/partials/app_header.php";
         <div>
           <h3>Net R</h3>
           <div class="kpi-value"><?= number_format($net_r, 2) ?>R</div>
-          <div class="kpi-sub">Closed trades only</div>
+          <div class="kpi-sub">Closed trades</div>
         </div>
         <div class="badge <?= $net_r >= 0 ? 'good' : 'bad' ?>">
           <?= $net_r >= 0 ? "▲" : "▼" ?> <?= number_format(abs($net_r), 2) ?>R
@@ -533,7 +791,7 @@ require_once __DIR__ . "/partials/app_header.php";
         <div>
           <h3>Expectancy</h3>
           <div class="kpi-value"><?= number_format($expectancy, 2) ?>R</div>
-          <div class="kpi-sub">Net R ÷ Trades</div>
+          <div class="kpi-sub">Net R ÷ trades</div>
         </div>
         <div class="badge"><?= $total ?> trades</div>
       </div>
@@ -544,7 +802,7 @@ require_once __DIR__ . "/partials/app_header.php";
         <div>
           <h3>Profit Factor</h3>
           <div class="kpi-value"><?= $profit_factor > 0 ? number_format($profit_factor, 2) : "-" ?></div>
-          <div class="kpi-sub">Gross Win R ÷ Gross Loss R</div>
+          <div class="kpi-sub">Win R ÷ loss R</div>
         </div>
         <div style="width:74px;height:74px">
           <canvas id="pfDonut"></canvas>
@@ -557,7 +815,7 @@ require_once __DIR__ . "/partials/app_header.php";
         <div>
           <h3>Win Rate</h3>
           <div class="kpi-value"><?= number_format($win_rate, 1) ?>%</div>
-          <div class="kpi-sub">Wins: <?= $wins ?> / <?= $total ?></div>
+          <div class="kpi-sub"><?= $wins ?> / <?= $total ?> wins</div>
         </div>
         <div class="badge"><?= number_format($avg_r, 2) ?>R avg</div>
       </div>
@@ -630,7 +888,7 @@ require_once __DIR__ . "/partials/app_header.php";
   </div>
 
   <div class="chart-card">
-    <h3 class="card-title">Daily Net R (this month)</h3>
+    <h3 class="card-title">Daily Net R</h3>
     <div class="chart-box-md">
       <canvas id="netRLine"></canvas>
     </div>
@@ -654,7 +912,7 @@ require_once __DIR__ . "/partials/app_header.php";
       </div>
     </div>
 
-    <div style="margin-top:12px">
+    <div class="monthly-scroll">
       <div class="monthly-grid" style="margin-bottom:8px">
         <div class="monthly-dow">Sun</div>
         <div class="monthly-dow">Mon</div>
@@ -721,6 +979,7 @@ new Chart(document.getElementById("pfDonut"), {
     datasets: [{ data: [grossWin, grossLoss], borderWidth: 0 }]
   },
   options: {
+    maintainAspectRatio:false,
     plugins: { legend: { display: false } },
     cutout: "70%"
   }
@@ -733,6 +992,7 @@ new Chart(document.getElementById("wlDonut"), {
     datasets: [{ data: [winRate, lossRate], borderWidth: 0 }]
   },
   options: {
+    maintainAspectRatio:false,
     plugins: { legend: { position: "bottom" } },
     cutout: "70%"
   }
@@ -750,6 +1010,7 @@ new Chart(document.getElementById("netRLine"), {
     }]
   },
   options: {
+    maintainAspectRatio:false,
     plugins: { legend: { display: false } },
     scales: { x: { grid: { display: false } } }
   }
@@ -767,6 +1028,7 @@ new Chart(document.getElementById("disciplineRadar"), {
     }]
   },
   options: {
+    maintainAspectRatio:false,
     plugins: { legend: { display: false } },
     scales: {
       r: {

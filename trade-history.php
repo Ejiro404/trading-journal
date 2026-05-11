@@ -100,7 +100,7 @@ $countStmt->execute();
 $totalTrades = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
 $totalPages = max(1, (int)ceil($totalTrades / $perPage));
 
-/** Table data */
+/** Trade data */
 $sql = "
     SELECT
         id,
@@ -125,7 +125,7 @@ $fullTypes = $types . "ii";
 $fullParams = array_merge($params, [$perPage, $offset]);
 $stmt->bind_param($fullTypes, ...$fullParams);
 $stmt->execute();
-$trades = $stmt->get_result();
+$trades = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 /** Top stats */
 $statsSql = "
@@ -149,34 +149,64 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.trade-history-wrap{ display:grid; gap:14px; }
+.trade-history-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+}
 
 .page-head{
-  display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
 }
-.page-head h1{ margin:0; font-size:28px; font-weight:900; }
-.page-head p{ margin:6px 0 0; color:var(--muted); }
+
+.page-head h1{
+  margin:0;
+  font-size:28px;
+  line-height:1.05;
+  font-weight:900;
+  letter-spacing:-.03em;
+}
+
+.page-head p{
+  margin:6px 0 0;
+  color:var(--muted);
+  line-height:1.6;
+}
 
 .stats-grid{
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
 }
+
 .stat-card{
   background:var(--card);
   border:1px solid var(--border);
   border-radius:18px;
   padding:16px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
+
 .stat-card h3{
   margin:0 0 8px;
-  font-size:13px;
+  font-size:12px;
   color:var(--muted);
-  font-weight:800;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
 }
+
 .stat-card .value{
   font-size:26px;
   font-weight:900;
   line-height:1.1;
+  word-break:break-word;
 }
 
 .filters-card,
@@ -185,19 +215,30 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
 
-.filters-card{ padding:16px; }
+.filters-card{
+  padding:16px;
+}
+
 .filters-grid{
   display:grid;
   grid-template-columns:repeat(6,minmax(0,1fr));
   gap:12px;
 }
-.filter-field{ display:grid; gap:6px; }
+
+.filter-field{
+  display:grid;
+  gap:6px;
+  min-width:0;
+}
+
 .filter-field label{
   font-size:12px;
   font-weight:800;
   color:var(--muted);
+  margin:0;
 }
 
 .filter-field input,
@@ -217,21 +258,30 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:10px;
   align-items:flex-end;
   flex-wrap:wrap;
+  margin-top:12px;
 }
 
-.history-table-wrap{ overflow:auto; }
+.history-table-wrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
 .history-table{
   width:100%;
   border-collapse:collapse;
   min-width:1080px;
 }
+
 .history-table th,
 .history-table td{
   padding:14px 16px;
   border-bottom:1px solid var(--border);
   text-align:left;
   vertical-align:middle;
+  white-space:nowrap;
 }
+
 .history-table th{
   font-size:12px;
   text-transform:uppercase;
@@ -239,7 +289,10 @@ require_once __DIR__ . "/partials/app_header.php";
   color:var(--muted);
   font-weight:900;
 }
-.history-table tr:last-child td{ border-bottom:none; }
+
+.history-table tr:last-child td{
+  border-bottom:none;
+}
 
 .pill{
   display:inline-flex;
@@ -251,7 +304,9 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:6px 10px;
   font-size:12px;
   font-weight:900;
+  white-space:nowrap;
 }
+
 .pill.buy{ color:#16a34a; }
 .pill.sell{ color:#ef4444; }
 .pill.win{ color:#16a34a; }
@@ -276,6 +331,10 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
 }
 
+.mobile-trade-list{
+  display:none;
+}
+
 .pagination{
   display:flex;
   justify-content:flex-end;
@@ -283,6 +342,7 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   padding:14px 16px 16px;
 }
+
 .page-link{
   display:inline-flex;
   align-items:center;
@@ -296,17 +356,219 @@ require_once __DIR__ . "/partials/app_header.php";
   text-decoration:none;
   font-weight:900;
 }
+
 .page-link.active{
   border-color:transparent;
 }
 
-@media (max-width: 1100px){
+@media (max-width:1100px){
   .filters-grid,
-  .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .stats-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
 }
-@media (max-width: 720px){
-  .filters-grid,
-  .stats-grid{ grid-template-columns:1fr; }
+
+@media (max-width:720px){
+  .trade-history-wrap{
+    gap:12px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+
+  .stat-card{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .stat-card h3{
+    font-size:10px;
+    margin-bottom:6px;
+  }
+
+  .stat-card .value{
+    font-size:22px;
+  }
+
+  .filters-card{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .filters-grid{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .filter-field label{
+    font-size:10px;
+  }
+
+  .filter-field input,
+  .filter-field select{
+    min-height:38px;
+    padding:8px 10px;
+    font-size:16px;
+    border-radius:12px;
+  }
+
+  .filter-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .filter-actions .btn{
+    width:100%;
+    min-height:36px;
+    font-size:12px;
+    padding:8px 10px;
+  }
+
+  .history-table-wrap{
+    display:none;
+  }
+
+  .table-card{
+    background:transparent;
+    border:0;
+    box-shadow:none;
+  }
+
+  .mobile-trade-list{
+    display:grid;
+    gap:10px;
+  }
+
+  .mobile-trade-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:var(--shadow);
+    padding:13px;
+  }
+
+  .mobile-trade-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .mobile-symbol{
+    font-size:17px;
+    line-height:1.05;
+    font-weight:950;
+    letter-spacing:-.03em;
+  }
+
+  .mobile-time{
+    margin-top:4px;
+    font-size:10px;
+    color:var(--muted);
+    font-weight:800;
+  }
+
+  .mobile-pnl{
+    text-align:right;
+    font-size:16px;
+    font-weight:950;
+    white-space:nowrap;
+  }
+
+  .mobile-pill-row{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+
+  .mobile-trade-meta{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .mobile-meta-box{
+    border:1px solid var(--border);
+    background:var(--pill);
+    border-radius:14px;
+    padding:9px;
+    min-width:0;
+  }
+
+  .mobile-meta-label{
+    font-size:10px;
+    color:var(--muted);
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+
+  .mobile-meta-value{
+    margin-top:4px;
+    font-size:12px;
+    font-weight:900;
+    word-break:break-word;
+  }
+
+  .mobile-card-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .mobile-card-actions .btn{
+    width:100%;
+    min-height:36px;
+    font-size:12px;
+    padding:8px 10px;
+  }
+
+  .empty-state{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:var(--shadow);
+  }
+
+  .pagination{
+    justify-content:center;
+    padding:12px 0 0;
+  }
+
+  .page-link{
+    min-width:36px;
+    height:36px;
+    border-radius:11px;
+    font-size:12px;
+  }
+}
+
+@media (max-width:390px){
+  .filters-grid{
+    grid-template-columns:1fr;
+  }
+
+  .stats-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .mobile-trade-meta{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -385,7 +647,7 @@ require_once __DIR__ . "/partials/app_header.php";
         </div>
       </div>
 
-      <div class="filter-actions" style="margin-top:12px">
+      <div class="filter-actions">
         <button class="btn" type="submit">Apply Filters</button>
         <a class="btn secondary" href="/trading-journal/trade-history.php">Reset</a>
       </div>
@@ -410,8 +672,8 @@ require_once __DIR__ . "/partials/app_header.php";
           </tr>
         </thead>
         <tbody>
-          <?php if ($trades && $trades->num_rows > 0): ?>
-            <?php while ($trade = $trades->fetch_assoc()): ?>
+          <?php if (!empty($trades)): ?>
+            <?php foreach ($trades as $trade): ?>
               <?php
                 $directionClass = strtoupper((string)$trade['direction']) === 'BUY' ? 'buy' : 'sell';
                 $outcomeVal = strtolower((string)($trade['outcome'] ?? ''));
@@ -424,25 +686,13 @@ require_once __DIR__ . "/partials/app_header.php";
               <tr>
                 <td><?= e(fmt_dt($trade['entry_time'] ?? null)) ?></td>
                 <td><strong><?= e($trade['symbol'] ?? '-') ?></strong></td>
-                <td>
-                  <span class="pill <?= e($directionClass) ?>">
-                    <?= e($trade['direction'] ?? '-') ?>
-                  </span>
-                </td>
+                <td><span class="pill <?= e($directionClass) ?>"><?= e($trade['direction'] ?? '-') ?></span></td>
                 <td><?= e(fmt_price($trade['entry_price'] ?? null)) ?></td>
                 <td><?= e(fmt_price($trade['exit_price'] ?? null)) ?></td>
                 <td><?= e(fmt_price($trade['position_size'] ?? null, 2)) ?></td>
                 <td class="<?= e($pnlClass) ?>"><?= e(fmt_money($trade['pnl_amount'] ?? 0)) ?></td>
-                <td>
-                  <span class="pill <?= e($outcomeClass) ?>">
-                    <?= e(ucfirst($outcomeVal !== '' ? $outcomeVal : 'breakeven')) ?>
-                  </span>
-                </td>
-                <td>
-                  <span class="pill <?= e($sourceClass) ?>">
-                    <?= e(strtoupper($sourceVal !== '' ? $sourceVal : 'manual')) ?>
-                  </span>
-                </td>
+                <td><span class="pill <?= e($outcomeClass) ?>"><?= e(ucfirst($outcomeVal !== '' ? $outcomeVal : 'breakeven')) ?></span></td>
+                <td><span class="pill <?= e($sourceClass) ?>"><?= e(strtoupper($sourceVal !== '' ? $sourceVal : 'manual')) ?></span></td>
                 <td>
                   <div class="action-group">
                     <a class="btn secondary" href="/trading-journal/log_view.php?id=<?= (int)$trade['id'] ?>">View</a>
@@ -450,7 +700,7 @@ require_once __DIR__ . "/partials/app_header.php";
                   </div>
                 </td>
               </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
           <?php else: ?>
             <tr>
               <td colspan="10" class="empty-state">No trades found for the selected filters.</td>
@@ -458,6 +708,68 @@ require_once __DIR__ . "/partials/app_header.php";
           <?php endif; ?>
         </tbody>
       </table>
+    </div>
+
+    <div class="mobile-trade-list">
+      <?php if (!empty($trades)): ?>
+        <?php foreach ($trades as $trade): ?>
+          <?php
+            $directionClass = strtoupper((string)$trade['direction']) === 'BUY' ? 'buy' : 'sell';
+            $outcomeVal = strtolower((string)($trade['outcome'] ?? ''));
+            $outcomeClass = in_array($outcomeVal, ['win', 'loss', 'breakeven'], true) ? $outcomeVal : 'breakeven';
+            $sourceVal = strtolower((string)($trade['source'] ?? 'manual'));
+            $sourceClass = $sourceVal === 'mt5' ? 'mt5' : 'manual';
+            $pnl = (float)($trade['pnl_amount'] ?? 0);
+            $pnlClass = $pnl > 0 ? 'value-win' : ($pnl < 0 ? 'value-loss' : 'value-breakeven');
+          ?>
+          <article class="mobile-trade-card">
+            <div class="mobile-trade-top">
+              <div>
+                <div class="mobile-symbol"><?= e($trade['symbol'] ?? '-') ?></div>
+                <div class="mobile-time"><?= e(fmt_dt($trade['entry_time'] ?? null)) ?></div>
+              </div>
+              <div class="mobile-pnl <?= e($pnlClass) ?>">
+                <?= e(fmt_money($trade['pnl_amount'] ?? 0)) ?>
+              </div>
+            </div>
+
+            <div class="mobile-pill-row">
+              <span class="pill <?= e($directionClass) ?>"><?= e($trade['direction'] ?? '-') ?></span>
+              <span class="pill <?= e($outcomeClass) ?>"><?= e(ucfirst($outcomeVal !== '' ? $outcomeVal : 'breakeven')) ?></span>
+              <span class="pill <?= e($sourceClass) ?>"><?= e(strtoupper($sourceVal !== '' ? $sourceVal : 'manual')) ?></span>
+            </div>
+
+            <div class="mobile-trade-meta">
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Entry</div>
+                <div class="mobile-meta-value"><?= e(fmt_price($trade['entry_price'] ?? null)) ?></div>
+              </div>
+
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Exit</div>
+                <div class="mobile-meta-value"><?= e(fmt_price($trade['exit_price'] ?? null)) ?></div>
+              </div>
+
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Position</div>
+                <div class="mobile-meta-value"><?= e(fmt_price($trade['position_size'] ?? null, 2)) ?></div>
+              </div>
+
+              <div class="mobile-meta-box">
+                <div class="mobile-meta-label">Created</div>
+                <div class="mobile-meta-value"><?= e(fmt_dt($trade['created_at'] ?? null)) ?></div>
+              </div>
+            </div>
+
+            <div class="mobile-card-actions">
+              <a class="btn secondary" href="/trading-journal/log_view.php?id=<?= (int)$trade['id'] ?>">View</a>
+              <a class="btn" href="/trading-journal/log_edit.php?id=<?= (int)$trade['id'] ?>">Edit</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <div class="empty-state">No trades found for the selected filters.</div>
+      <?php endif; ?>
     </div>
 
     <?php if ($totalPages > 1): ?>

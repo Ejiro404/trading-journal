@@ -92,7 +92,6 @@ $ts->execute();
 $tagRows = $ts->get_result()->fetch_all(MYSQLI_ASSOC);
 
 $error = "";
-$ok = "";
 
 $uploadDir = __DIR__ . "/uploads/trade_screenshots/";
 $uploadRelative = "uploads/trade_screenshots/";
@@ -204,16 +203,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     set_trade_strategy($conn, $id, $user_id, $strategy_name);
 
-    $ok = "Trade updated.";
-
-    $stmt = $conn->prepare("SELECT * FROM trades WHERE id=? AND user_id=? LIMIT 1");
-    $stmt->bind_param("ii", $id, $user_id);
-    $stmt->execute();
-    $trade = $stmt->get_result()->fetch_assoc();
-
-    $cs->execute();
-    $cur = $cs->get_result()->fetch_assoc();
-    $curStr = $cur ? (string)$cur['name'] : "";
+    header("Location: /trading-journal/log_view.php?id=" . $id);
+    exit;
   }
 }
 
@@ -221,7 +212,12 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.tradeedit-wrap{ display:grid; gap:14px; }
+.tradeedit-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+}
 
 .page-head{
   display:flex;
@@ -230,15 +226,21 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
+
 .page-head-actions{
   display:flex;
   gap:10px;
@@ -258,17 +260,21 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:18px;
   box-shadow:var(--shadow);
   padding:16px;
+  min-width:0;
 }
 
 .panel-title{
   margin:0 0 4px;
   font-size:20px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .panel-sub{
   color:var(--muted);
   font-size:13px;
   font-weight:700;
+  line-height:1.6;
   margin-bottom:14px;
 }
 
@@ -281,25 +287,32 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:800;
   margin-bottom:14px;
 }
-.alert.err{ color:#ef4444; }
-.alert.ok{ color:#16a34a; }
+
+.alert.err{
+  color:#ef4444;
+}
 
 .form-grid{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:12px;
 }
+
 .field{
   display:grid;
   gap:6px;
+  min-width:0;
 }
+
 .field label{
   font-size:12px;
   font-weight:900;
   color:var(--muted);
   text-transform:uppercase;
   letter-spacing:.03em;
+  margin:0;
 }
+
 .field input,
 .field select,
 .field textarea{
@@ -310,15 +323,19 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:12px;
   padding:10px 12px;
   outline:none;
+  font-size:16px;
 }
+
 .field input,
 .field select{
   min-height:44px;
 }
+
 .field textarea{
   min-height:170px;
   resize:vertical;
 }
+
 .field-help{
   color:var(--muted);
   font-size:11px;
@@ -340,12 +357,14 @@ require_once __DIR__ . "/partials/app_header.php";
   display:grid;
   gap:10px;
 }
+
 .helper-item{
   border:1px solid var(--border);
   background:var(--pill);
   border-radius:14px;
   padding:12px 14px;
 }
+
 .helper-item-title{
   font-size:12px;
   text-transform:uppercase;
@@ -354,6 +373,7 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 .helper-item-text{
   font-size:13px;
   line-height:1.6;
@@ -367,6 +387,7 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:12px 14px;
   margin-top:12px;
 }
+
 .status-title{
   font-size:12px;
   text-transform:uppercase;
@@ -375,9 +396,11 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 .status-value{
   font-size:13px;
   font-weight:700;
+  line-height:1.5;
 }
 
 .screenshot-preview{
@@ -386,7 +409,9 @@ require_once __DIR__ . "/partials/app_header.php";
   max-width:100%;
   border-radius:16px;
   border:1px solid var(--border);
+  margin-bottom:10px;
 }
+
 .checkbox-row{
   display:flex;
   align-items:center;
@@ -398,15 +423,146 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:700;
 }
 
-@media (max-width: 1100px){
-  .edit-shell{ grid-template-columns:1fr; }
+.checkbox-row input{
+  width:auto;
 }
-@media (max-width: 820px){
-  .form-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+
+@media (max-width:1100px){
+  .edit-shell{
+    grid-template-columns:1fr;
+  }
 }
-@media (max-width: 600px){
-  .form-grid{ grid-template-columns:1fr; }
-  .span-2{ grid-column:auto; }
+
+@media (max-width:820px){
+  .form-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:720px){
+  .tradeedit-wrap{
+    gap:12px;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+  }
+
+  .page-head-actions{
+    width:100%;
+  }
+
+  .page-head-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .form-panel,
+  .helper-panel{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .panel-title{
+    font-size:17px;
+  }
+
+  .panel-sub{
+    font-size:11px;
+    margin-bottom:12px;
+  }
+
+  .alert{
+    font-size:12px;
+    padding:10px 12px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .span-2,
+  .span-4{
+    grid-column:1 / -1;
+  }
+
+  .field label{
+    font-size:10px;
+  }
+
+  .field input,
+  .field select{
+    min-height:38px;
+    padding:8px 10px;
+    border-radius:12px;
+    font-size:16px;
+  }
+
+  .field textarea{
+    min-height:120px;
+    padding:10px;
+    font-size:16px;
+    border-radius:12px;
+  }
+
+  .field-help{
+    font-size:10px;
+  }
+
+  .actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .helper-item{
+    padding:10px 12px;
+    border-radius:14px;
+  }
+
+  .helper-item-title,
+  .status-title{
+    font-size:10px;
+  }
+
+  .helper-item-text,
+  .status-value{
+    font-size:11px;
+  }
+
+  .status-box{
+    padding:10px 12px;
+  }
+}
+
+@media (max-width:430px){
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .actions{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -431,10 +587,6 @@ require_once __DIR__ . "/partials/app_header.php";
 
       <?php if ($error): ?>
         <div class="alert err"><?= e($error) ?></div>
-      <?php endif; ?>
-
-      <?php if ($ok): ?>
-        <div class="alert ok"><?= e($ok) ?></div>
       <?php endif; ?>
 
       <form method="post" enctype="multipart/form-data">

@@ -76,6 +76,7 @@ if (!$trade) {
   http_response_code(404);
   exit("Trade not found.");
 }
+
 if ($trade['r_multiple'] === null) {
   exit("Close the trade first (R must be calculated) before reviewing.");
 }
@@ -113,7 +114,6 @@ $mm->execute();
 $selectedMistakes = array_map(fn($x) => $x['name'], $mm->get_result()->fetch_all(MYSQLI_ASSOC));
 
 $error = "";
-$ok = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $plan = trim($_POST['plan'] ?? '');
@@ -157,11 +157,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $m->bind_param("ii", $trade_id, $user_id);
     $m->execute();
 
-    $ok = "Review saved.";
-
-    $mm->execute();
-    $selectedMistakes = array_map(fn($x) => $x['name'], $mm->get_result()->fetch_all(MYSQLI_ASSOC));
-    $rules_score = $rules_score_val === null ? '' : (string)$rules_score_val;
+    header("Location: /trading-journal/log_view.php?id=" . $trade_id);
+    exit;
   }
 }
 
@@ -169,7 +166,12 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.reviewform-wrap{ display:grid; gap:14px; }
+.reviewform-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+}
 
 .page-head{
   display:flex;
@@ -178,15 +180,21 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
+
 .page-head-actions{
   display:flex;
   gap:10px;
@@ -206,17 +214,21 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:18px;
   box-shadow:var(--shadow);
   padding:16px;
+  min-width:0;
 }
 
 .panel-title{
   margin:0 0 4px;
   font-size:20px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .panel-sub{
   color:var(--muted);
   font-size:13px;
   font-weight:700;
+  line-height:1.6;
   margin-bottom:14px;
 }
 
@@ -229,20 +241,26 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:800;
   margin-bottom:14px;
 }
-.alert.err{ color:#ef4444; }
-.alert.ok{ color:#16a34a; }
+
+.alert.err{
+  color:#ef4444;
+}
 
 .trade-summary{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:12px;
+  margin-bottom:14px;
 }
+
 .summary-box{
   border:1px solid var(--border);
   background:var(--pill);
   border-radius:14px;
   padding:12px 14px;
+  min-width:0;
 }
+
 .summary-label{
   font-size:12px;
   text-transform:uppercase;
@@ -251,10 +269,12 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 .summary-value{
   font-size:16px;
   font-weight:900;
   line-height:1.3;
+  word-break:break-word;
 }
 
 .form-grid{
@@ -262,17 +282,22 @@ require_once __DIR__ . "/partials/app_header.php";
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
 }
+
 .field{
   display:grid;
   gap:6px;
+  min-width:0;
 }
+
 .field label{
   font-size:12px;
   font-weight:900;
   color:var(--muted);
   text-transform:uppercase;
   letter-spacing:.03em;
+  margin:0;
 }
+
 .field input,
 .field textarea{
   width:100%;
@@ -282,15 +307,21 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:12px;
   padding:10px 12px;
   outline:none;
+  font-size:16px;
 }
+
 .field input{
   min-height:44px;
 }
+
 .field textarea{
   min-height:140px;
   resize:vertical;
 }
-.span-2{ grid-column:1 / -1; }
+
+.span-2{
+  grid-column:1 / -1;
+}
 
 .chipgrid{
   display:flex;
@@ -298,16 +329,19 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   margin-top:8px;
 }
+
 .chipbox{
   position:relative;
   display:inline-flex;
   align-items:center;
 }
+
 .chipbox input{
   position:absolute;
   opacity:0;
   pointer-events:none;
 }
+
 .chip{
   display:inline-flex;
   align-items:center;
@@ -323,10 +357,12 @@ require_once __DIR__ . "/partials/app_header.php";
   user-select:none;
   transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
+
 .chip:hover{
   box-shadow:var(--shadow);
   transform:translateY(-1px);
 }
+
 .chipbox input:checked + .chip{
   border-color:rgba(109,94,252,.45);
   box-shadow:0 0 0 4px rgba(109,94,252,.10);
@@ -336,12 +372,14 @@ require_once __DIR__ . "/partials/app_header.php";
   display:grid;
   gap:10px;
 }
+
 .helper-item{
   border:1px solid var(--border);
   background:var(--pill);
   border-radius:14px;
   padding:12px 14px;
 }
+
 .helper-item-title{
   font-size:12px;
   text-transform:uppercase;
@@ -350,6 +388,7 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 .helper-item-text{
   font-size:13px;
   line-height:1.6;
@@ -363,15 +402,158 @@ require_once __DIR__ . "/partials/app_header.php";
   margin-top:16px;
 }
 
-@media (max-width: 1100px){
-  .review-shell{ grid-template-columns:1fr; }
+@media (max-width:1100px){
+  .review-shell{
+    grid-template-columns:1fr;
+  }
 }
-@media (max-width: 820px){
-  .trade-summary{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .form-grid{ grid-template-columns:1fr; }
+
+@media (max-width:820px){
+  .trade-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+  }
 }
-@media (max-width: 560px){
-  .trade-summary{ grid-template-columns:1fr; }
+
+@media (max-width:720px){
+  .reviewform-wrap{
+    gap:12px;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+  }
+
+  .page-head-actions{
+    width:100%;
+  }
+
+  .page-head-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .form-panel,
+  .context-panel{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .panel-title{
+    font-size:17px;
+  }
+
+  .panel-sub{
+    font-size:11px;
+    margin-bottom:12px;
+  }
+
+  .alert{
+    font-size:12px;
+    padding:10px 12px;
+  }
+
+  .trade-summary{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:12px;
+  }
+
+  .summary-box{
+    padding:10px 12px;
+    border-radius:14px;
+  }
+
+  .summary-label{
+    font-size:10px;
+    margin-bottom:5px;
+  }
+
+  .summary-value{
+    font-size:13px;
+  }
+
+  .form-grid{
+    gap:10px;
+  }
+
+  .field label{
+    font-size:10px;
+  }
+
+  .field input{
+    min-height:38px;
+    padding:8px 10px;
+    border-radius:12px;
+    font-size:16px;
+  }
+
+  .field textarea{
+    min-height:115px;
+    padding:10px;
+    border-radius:12px;
+    font-size:16px;
+  }
+
+  .chipgrid{
+    gap:8px;
+  }
+
+  .chip{
+    padding:7px 10px;
+    font-size:10px;
+  }
+
+  .actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .helper-item{
+    padding:10px 12px;
+    border-radius:14px;
+  }
+
+  .helper-item-title{
+    font-size:10px;
+  }
+
+  .helper-item-text{
+    font-size:11px;
+  }
+}
+
+@media (max-width:430px){
+  .trade-summary{
+    grid-template-columns:1fr;
+  }
+
+  .actions{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -394,7 +576,7 @@ require_once __DIR__ . "/partials/app_header.php";
       <h3 class="panel-title">Review Form</h3>
       <div class="panel-sub">Capture the plan, execution quality, mistakes, lessons, and next-step adjustments.</div>
 
-      <div class="trade-summary" style="margin-bottom:14px;">
+      <div class="trade-summary">
         <div class="summary-box">
           <div class="summary-label">Symbol</div>
           <div class="summary-value"><?= e($trade['symbol']) ?></div>
@@ -417,10 +599,6 @@ require_once __DIR__ . "/partials/app_header.php";
         <div class="alert err"><?= e($error) ?></div>
       <?php endif; ?>
 
-      <?php if ($ok): ?>
-        <div class="alert ok"><?= e($ok) ?></div>
-      <?php endif; ?>
-
       <form method="post">
         <div class="form-grid">
 
@@ -435,12 +613,12 @@ require_once __DIR__ . "/partials/app_header.php";
           </div>
 
           <div class="field span-2">
-            <label for="rules_score">Rule Adherence Score (0–100)</label>
+            <label for="rules_score">Rule Adherence Score (0-100)</label>
             <input id="rules_score" name="rules_score" type="number" min="0" max="100" step="5" value="<?= e($rules_score) ?>">
           </div>
 
           <div class="field span-2">
-            <label>Mistakes (toggle chips)</label>
+            <label>Mistakes</label>
             <div class="chipgrid">
               <?php foreach ($mistakeOptions as $o): ?>
                 <?php $nm = (string)$o['name']; $checked = in_array($nm, $selectedMistakes, true); ?>
@@ -450,7 +628,7 @@ require_once __DIR__ . "/partials/app_header.php";
                 </label>
               <?php endforeach; ?>
               <?php if (!$mistakeOptions): ?>
-                <span class="panel-sub" style="margin:0">No mistake tags yet — create one below.</span>
+                <span class="panel-sub" style="margin:0">No mistake tags yet. Create one below.</span>
               <?php endif; ?>
             </div>
           </div>
@@ -461,7 +639,7 @@ require_once __DIR__ . "/partials/app_header.php";
           </div>
 
           <div class="field span-2">
-            <label for="mistakes_notes">Mistakes / Confirmations (notes)</label>
+            <label for="mistakes_notes">Mistakes / Confirmations</label>
             <textarea id="mistakes_notes" name="mistakes_notes"><?= e($mistakes_notes) ?></textarea>
           </div>
 

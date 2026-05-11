@@ -147,7 +147,12 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.newtrade-wrap{ display:grid; gap:14px; }
+.newtrade-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+}
 
 .page-head{
   display:flex;
@@ -156,15 +161,21 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
+
 .page-head-actions{
   display:flex;
   gap:10px;
@@ -173,7 +184,7 @@ require_once __DIR__ . "/partials/app_header.php";
 
 .form-shell{
   display:grid;
-  grid-template-columns: 1.1fr .9fr;
+  grid-template-columns:1.1fr .9fr;
   gap:14px;
 }
 
@@ -184,23 +195,22 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
-}
-
-.form-panel,
-.helper-panel,
-.notes-panel{
   padding:16px;
+  min-width:0;
 }
 
 .panel-title{
   margin:0 0 4px;
   font-size:20px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .panel-sub{
   color:var(--muted);
   font-size:13px;
   font-weight:700;
+  line-height:1.6;
   margin-bottom:14px;
 }
 
@@ -213,24 +223,32 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:800;
   margin-bottom:14px;
 }
-.alert.err{ color:#ef4444; }
+
+.alert.err{
+  color:#ef4444;
+}
 
 .form-grid{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:12px;
 }
+
 .field{
   display:grid;
   gap:6px;
+  min-width:0;
 }
+
 .field label{
   font-size:12px;
   font-weight:900;
   color:var(--muted);
   text-transform:uppercase;
   letter-spacing:.03em;
+  margin:0;
 }
+
 .field input,
 .field select,
 .field textarea{
@@ -241,15 +259,19 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:12px;
   padding:10px 12px;
   outline:none;
+  font-size:16px;
 }
+
 .field input,
 .field select{
   min-height:44px;
 }
+
 .field textarea{
   min-height:160px;
   resize:vertical;
 }
+
 .field-help{
   color:var(--muted);
   font-size:11px;
@@ -267,16 +289,24 @@ require_once __DIR__ . "/partials/app_header.php";
   margin-top:16px;
 }
 
+.helper-side{
+  display:grid;
+  gap:14px;
+  align-content:start;
+}
+
 .helper-list{
   display:grid;
   gap:10px;
 }
+
 .helper-item{
   border:1px solid var(--border);
   background:var(--pill);
   border-radius:14px;
   padding:12px 14px;
 }
+
 .helper-item-title{
   font-size:12px;
   text-transform:uppercase;
@@ -285,6 +315,7 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 .helper-item-text{
   font-size:13px;
   line-height:1.6;
@@ -298,6 +329,7 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:14px;
   padding:12px 14px;
 }
+
 .suggest-title{
   font-size:12px;
   text-transform:uppercase;
@@ -306,21 +338,155 @@ require_once __DIR__ . "/partials/app_header.php";
   font-weight:900;
   margin-bottom:6px;
 }
+
 #autoHint{
   color:var(--text);
   font-size:13px;
+  line-height:1.5;
   font-weight:700;
 }
 
-@media (max-width: 1100px){
-  .form-shell{ grid-template-columns:1fr; }
+@media (max-width:1100px){
+  .form-shell{
+    grid-template-columns:1fr;
+  }
 }
-@media (max-width: 820px){
-  .form-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+
+@media (max-width:820px){
+  .form-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
 }
-@media (max-width: 600px){
-  .form-grid{ grid-template-columns:1fr; }
-  .span-2{ grid-column:auto; }
+
+@media (max-width:720px){
+  .newtrade-wrap{
+    gap:12px;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+  }
+
+  .page-head-actions{
+    width:100%;
+  }
+
+  .page-head-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .form-panel,
+  .helper-panel,
+  .notes-panel{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .panel-title{
+    font-size:17px;
+  }
+
+  .panel-sub{
+    font-size:11px;
+    margin-bottom:12px;
+  }
+
+  .alert{
+    font-size:12px;
+    padding:10px 12px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .span-2,
+  .span-4{
+    grid-column:1 / -1;
+  }
+
+  .field label{
+    font-size:10px;
+  }
+
+  .field input,
+  .field select{
+    min-height:38px;
+    padding:8px 10px;
+    border-radius:12px;
+    font-size:16px;
+  }
+
+  .field textarea{
+    min-height:120px;
+    padding:10px;
+    font-size:16px;
+    border-radius:12px;
+  }
+
+  .field-help{
+    font-size:10px;
+  }
+
+  .actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+
+  .actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .helper-side{
+    gap:12px;
+  }
+
+  .helper-item{
+    padding:10px 12px;
+    border-radius:14px;
+  }
+
+  .helper-item-title,
+  .suggest-title{
+    font-size:10px;
+  }
+
+  .helper-item-text,
+  #autoHint{
+    font-size:11px;
+  }
+
+  .suggest-box{
+    padding:10px 12px;
+  }
+}
+
+@media (max-width:430px){
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .actions{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 
@@ -453,7 +619,7 @@ require_once __DIR__ . "/partials/app_header.php";
       </form>
     </div>
 
-    <div style="display:grid; gap:14px;">
+    <div class="helper-side">
       <div class="helper-panel">
         <h3 class="panel-title">Entry Guide</h3>
         <div class="panel-sub">A clean record now makes review and analytics more useful later.</div>

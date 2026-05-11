@@ -61,7 +61,13 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.analytics-wrap{ display:grid; gap:14px; }
+.analytics-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
+  overflow:hidden;
+}
 
 .page-head{
   display:flex;
@@ -70,15 +76,21 @@ require_once __DIR__ . "/partials/app_header.php";
   gap:12px;
   flex-wrap:wrap;
 }
+
 .page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
+
 .page-head-actions{
   display:flex;
   gap:10px;
@@ -90,6 +102,7 @@ require_once __DIR__ . "/partials/app_header.php";
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:14px;
 }
+
 .kpi-card,
 .table-panel,
 .insight-panel{
@@ -97,46 +110,63 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
-.kpi-card{ padding:16px; }
+
+.kpi-card{
+  padding:16px;
+}
+
 .kpi-card h3{
   margin:0 0 8px;
-  font-size:13px;
+  font-size:12px;
   color:var(--muted);
-  font-weight:800;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
 }
+
 .kpi-value{
   font-size:28px;
   font-weight:900;
-  line-height:1.1;
+  line-height:1.05;
+  word-break:break-word;
 }
+
 .kpi-sub{
   margin-top:6px;
   color:var(--muted);
   font-size:12px;
   font-weight:700;
+  line-height:1.45;
 }
 
 .insight-panel{
   padding:16px;
 }
+
 .insight-panel h3{
   margin:0 0 8px;
   font-size:19px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .insight-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:12px;
   margin-top:12px;
 }
+
 .insight-box{
   border:1px solid var(--border);
   background:var(--pill);
   border-radius:14px;
   padding:14px;
+  min-width:0;
 }
+
 .insight-label{
   font-size:12px;
   color:var(--muted);
@@ -145,18 +175,26 @@ require_once __DIR__ . "/partials/app_header.php";
   letter-spacing:.03em;
   margin-bottom:6px;
 }
+
 .insight-value{
   font-size:22px;
   font-weight:900;
+  line-height:1.05;
+  word-break:break-word;
 }
+
 .insight-sub{
   margin-top:6px;
   color:var(--muted);
   font-size:12px;
   font-weight:700;
+  line-height:1.45;
 }
 
-.table-panel{ overflow:hidden; }
+.table-panel{
+  overflow:hidden;
+}
+
 .table-head{
   display:flex;
   justify-content:space-between;
@@ -165,26 +203,34 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   padding:16px 16px 0;
 }
+
 .table-head h3{
   margin:0;
   font-size:20px;
+  line-height:1.1;
   font-weight:900;
 }
+
 .table-head .sub{
   color:var(--muted);
   font-size:13px;
   font-weight:700;
+  line-height:1.5;
 }
 
 .table-wrap{
-  overflow:auto;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
   padding-top:12px;
 }
+
 .analytics-table{
   width:100%;
   border-collapse:collapse;
   min-width:760px;
 }
+
 .analytics-table th,
 .analytics-table td{
   padding:14px 16px;
@@ -192,6 +238,7 @@ require_once __DIR__ . "/partials/app_header.php";
   border-bottom:1px solid var(--border);
   vertical-align:middle;
 }
+
 .analytics-table th{
   font-size:12px;
   text-transform:uppercase;
@@ -199,6 +246,7 @@ require_once __DIR__ . "/partials/app_header.php";
   color:var(--muted);
   font-weight:900;
 }
+
 .analytics-table tr:last-child td{
   border-bottom:none;
 }
@@ -206,6 +254,7 @@ require_once __DIR__ . "/partials/app_header.php";
 .pill{
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   gap:6px;
   border:1px solid var(--border);
   background:var(--pill);
@@ -213,7 +262,9 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:6px 10px;
   font-size:12px;
   font-weight:900;
+  white-space:nowrap;
 }
+
 .pill.good{ color:#16a34a; }
 .pill.bad{ color:#ef4444; }
 .pill.neutral{ color:#eab308; }
@@ -222,6 +273,7 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:28px 18px;
   text-align:center;
 }
+
 .empty-state p{
   margin:0 0 14px;
   color:var(--muted);
@@ -231,12 +283,167 @@ require_once __DIR__ . "/partials/app_header.php";
 .value-bad{ color:#ef4444; font-weight:900; }
 .value-neutral{ color:#eab308; font-weight:900; }
 
-@media (max-width: 1100px){
-  .kpi-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .insight-grid{ grid-template-columns:1fr; }
+@media (max-width:1100px){
+  .kpi-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .insight-grid{
+    grid-template-columns:1fr;
+  }
 }
-@media (max-width: 720px){
-  .kpi-grid{ grid-template-columns:1fr; }
+
+@media (max-width:720px){
+  .analytics-wrap{
+    gap:10px;
+    overflow:visible;
+  }
+
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:12px;
+    line-height:1.45;
+  }
+
+  .page-head-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    width:100%;
+  }
+
+  .page-head-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .kpi-grid{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  .kpi-card,
+  .insight-panel,
+  .table-panel{
+    border-radius:16px;
+  }
+
+  .kpi-card,
+  .insight-panel{
+    padding:13px;
+  }
+
+  .kpi-card h3{
+    font-size:10px;
+    margin-bottom:5px;
+    letter-spacing:.08em;
+  }
+
+  .kpi-value{
+    font-size:21px;
+  }
+
+  .kpi-sub{
+    font-size:10px;
+    margin-top:5px;
+  }
+
+  .insight-panel h3{
+    font-size:17px;
+  }
+
+  .insight-grid{
+    gap:8px;
+  }
+
+  .insight-box{
+    padding:10px;
+    border-radius:13px;
+  }
+
+  .insight-label{
+    font-size:10px;
+    margin-bottom:5px;
+  }
+
+  .insight-value{
+    font-size:20px;
+  }
+
+  .insight-sub{
+    font-size:10px;
+    margin-top:4px;
+  }
+
+  .table-head{
+    padding:13px 13px 0;
+  }
+
+  .table-head h3{
+    font-size:17px;
+  }
+
+  .table-head .sub{
+    font-size:11px;
+  }
+
+  .analytics-table{
+    min-width:620px;
+  }
+
+  .analytics-table th,
+  .analytics-table td{
+    padding:11px 12px;
+    font-size:12px;
+  }
+
+  .analytics-table th{
+    font-size:10px;
+  }
+
+  .pill{
+    font-size:10px;
+    padding:5px 8px;
+  }
+
+  .empty-state{
+    padding:22px 14px;
+  }
+
+  .empty-state p{
+    font-size:12px;
+  }
+
+  .empty-state .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+}
+
+@media (max-width:390px){
+  .page-head h1{
+    font-size:20px;
+  }
+
+  .kpi-value{
+    font-size:20px;
+  }
+
+  .insight-value{
+    font-size:19px;
+  }
 }
 </style>
 
@@ -282,6 +489,7 @@ require_once __DIR__ . "/partials/app_header.php";
 
   <div class="insight-panel">
     <h3>Quick Read</h3>
+
     <div class="insight-grid">
       <div class="insight-box">
         <div class="insight-label">Performance</div>

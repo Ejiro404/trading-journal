@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($email === "" || $password === "") {
     $error = "Email and password are required.";
   } else {
-    $stmt = $conn->prepare("SELECT id, name, password_hash FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
@@ -20,8 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$user || !password_verify($password, $user['password_hash'])) {
       $error = "Invalid login details.";
     } else {
+      session_regenerate_id(true);
+
       $_SESSION['user_id'] = (int)$user['id'];
       $_SESSION['user_name'] = $user['name'];
+      $_SESSION['user_email'] = $user['email'];
+
       header("Location: /trading-journal/dashboard.php");
       exit;
     }
@@ -52,35 +56,125 @@ $social = [
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/trading-journal/assets/css/style.css">
-  <link rel="stylesheet" href="/trading-journal/assets/css/auth.css">
-  <title>Login • <?= e($appName) ?></title>
 
   <script>
     (function () {
-      const saved = localStorage.getItem("nx_theme");
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const saved = localStorage.getItem("tj_theme");
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
       const dark = saved ? saved === "dark" : prefersDark;
       document.documentElement.classList.toggle("dark", dark);
     })();
   </script>
 
+  <link rel="stylesheet" href="/trading-journal/assets/css/style.css">
+  <link rel="stylesheet" href="/trading-journal/assets/css/auth.css">
+  <title>Login • <?= e($appName) ?></title>
+
   <style>
-    .theme-toggle {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      border: 1px solid var(--border);
-      background: var(--pill);
-      border-radius: 999px;
-      padding: 8px 10px;
-      cursor: pointer;
-      font-weight: 700;
-      line-height: 1;
+    .theme-corner{
+      position:absolute;
+      top:16px;
+      right:16px;
+      z-index:10;
+      width:46px;
+      height:46px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.04);
+      backdrop-filter:blur(12px);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:
+        background .2s ease,
+        border-color .2s ease,
+        transform .18s ease,
+        box-shadow .2s ease;
+    }
+
+    .theme-corner:hover{
+      transform:translateY(-1px);
+      box-shadow:var(--shadow);
+      background:rgba(255,255,255,0.07);
+    }
+
+    .theme-corner:active{
+      transform:translateY(0);
+    }
+
+    .theme-icon{
+      position:absolute;
+      width:19px;
+      height:19px;
+      transition:
+        opacity .2s ease,
+        transform .25s ease;
+    }
+
+    .sun-icon{
+      opacity:0;
+      transform:rotate(-90deg) scale(.7);
+    }
+
+    .moon-icon{
+      opacity:1;
+      transform:rotate(0deg) scale(1);
+    }
+
+    html.dark .sun-icon{
+      opacity:1;
+      transform:rotate(0deg) scale(1);
+    }
+
+    html.dark .moon-icon{
+      opacity:0;
+      transform:rotate(90deg) scale(.7);
+    }
+
+    .auth-input{
+      box-sizing:border-box;
+      font-size:16px;
+    }
+
+    .auth-password{
+      position:relative;
+    }
+
+    .auth-password .auth-input{
+      padding-right:64px;
+    }
+
+    .auth-eye{
+      position:absolute;
+      right:10px;
+      top:50%;
+      transform:translateY(-50%);
+      border:1px solid var(--border);
+      background:var(--pill);
+      color:var(--text);
+      width:44px;
+      height:36px;
+      border-radius:12px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+
+    .auth-eye:hover{
+      transform:translateY(-50%) scale(1.02);
+    }
+
+    .auth-btn{
+      margin-top:18px;
     }
 
     .login-shell {
       min-height: 100vh;
+      min-height: 100svh;
       display: flex;
       flex-direction: column;
     }
@@ -230,7 +324,7 @@ $social = [
 
     .login-footer-wrap {
       padding: 10px 20px 20px;
-      margin-top: 0;
+      margin-top: auto;
     }
 
     .login-footer-inner {
@@ -239,22 +333,100 @@ $social = [
     }
 
     @media (max-width: 900px) {
+      .login-top{
+        padding:16px 16px 0;
+      }
+
       .login-main {
+        width:100%;
         grid-template-columns: 1fr;
-        gap: 18px;
-        padding-top: 16px;
+        gap: 16px;
+        padding: 16px;
       }
 
       .login-feature-grid {
         grid-template-columns: 1fr;
       }
 
+      .login-side-panel{
+        padding:20px;
+        border-radius:22px;
+      }
+
       .login-hero-title {
         font-size: 30px;
+        line-height:1.08;
+      }
+
+      .auth-card.login-card-wrap{
+        border-radius:22px;
+        padding:22px;
+      }
+
+      .theme-corner{
+        top:14px;
+        right:14px;
+        width:42px;
+        height:42px;
+        border-radius:13px;
+      }
+
+      .auth-title{
+        padding-right:48px;
       }
 
       .login-footer-wrap {
         padding-top: 14px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .login-top-inner{
+        justify-content:center;
+      }
+
+      .login-main{
+        padding:14px;
+      }
+
+      .login-side-panel{
+        padding:18px;
+      }
+
+      .login-hero-title{
+        font-size:26px;
+      }
+
+      .login-hero-sub{
+        font-size:13px;
+      }
+
+      .login-feature{
+        padding:13px;
+      }
+
+      .login-note{
+        font-size:12px;
+      }
+
+      .auth-card.login-card-wrap{
+        padding:20px;
+      }
+
+      .login-meta{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:6px;
+      }
+
+      .login-footer-wrap{
+        padding:8px 14px 18px;
+      }
+
+      .auth-footer{
+        flex-direction:column;
+        gap:12px;
+        text-align:center;
       }
     }
   </style>
@@ -314,7 +486,26 @@ $social = [
 
       <section class="auth-wrap" style="padding:0; width:100%; margin:0;">
         <div class="auth-card login-card-wrap" style="width:100%;">
-          <button id="themeBtn" class="theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
+          <button class="theme-corner" type="button" id="themeBtn" aria-label="Toggle theme">
+            <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2V4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 20V22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M19.78 4.22L17.66 6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6.34 17.66L4.22 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M19.78 19.78L17.66 17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6.34 6.34L4.22 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+
+            <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3c0 .2-.1.5-.1.8A7.5 7.5 0 0 0 18.6 11c.8 0 1.6-.1 2.4-.4Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"/>
+            </svg>
+          </button>
 
           <div class="login-card-inner">
             <h2 class="auth-title">Sign in to <?= e($appName) ?></h2>
@@ -424,15 +615,10 @@ $social = [
   });
 
   const themeBtn = document.getElementById("themeBtn");
-  function syncThemeIcon() {
-    themeBtn.textContent = document.documentElement.classList.contains("dark") ? "☀️" : "🌙";
-  }
-  syncThemeIcon();
 
   themeBtn.addEventListener("click", () => {
     const dark = document.documentElement.classList.toggle("dark");
-    localStorage.setItem("nx_theme", dark ? "dark" : "light");
-    syncThemeIcon();
+    localStorage.setItem("tj_theme", dark ? "dark" : "light");
   });
 </script>
 </body>

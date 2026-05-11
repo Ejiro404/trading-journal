@@ -78,22 +78,39 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.log-view-wrap{ display:grid; gap:14px; }
-
-.topbar{
-  display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;
+.log-view-wrap{
+  display:grid;
+  gap:14px;
+  width:100%;
+  max-width:100%;
 }
-.topbar-left h1{
+
+.trade-page-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.trade-page-head h1{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
-.topbar-left p{
+
+.trade-page-head p{
   margin:6px 0 0;
   color:var(--muted);
+  line-height:1.6;
 }
+
 .topbar-actions{
-  display:flex; gap:10px; flex-wrap:wrap;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
 .hero-card,
@@ -102,15 +119,20 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
+  min-width:0;
 }
 
-.hero-card{ padding:20px; }
+.hero-card{
+  padding:20px;
+}
+
 .hero-grid{
   display:grid;
   grid-template-columns:2fr 1fr;
   gap:18px;
   align-items:center;
 }
+
 .trade-title{
   display:flex;
   align-items:center;
@@ -118,17 +140,22 @@ require_once __DIR__ . "/partials/app_header.php";
   flex-wrap:wrap;
   margin-bottom:12px;
 }
+
 .trade-title h2{
   margin:0;
   font-size:28px;
+  line-height:1.05;
   font-weight:900;
+  letter-spacing:-.03em;
 }
+
 .mini-meta{
   display:flex;
   flex-wrap:wrap;
   gap:12px;
   color:var(--muted);
   font-size:14px;
+  line-height:1.5;
 }
 
 .result-box{
@@ -138,18 +165,23 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:18px;
   text-align:center;
 }
+
 .result-box h3{
   margin:0 0 8px;
   color:var(--muted);
-  font-size:13px;
-  font-weight:800;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
 }
+
 .result-box .value{
   font-size:30px;
   font-weight:900;
   line-height:1.1;
-  margin-bottom:6px;
+  margin-bottom:8px;
 }
+
 .result-box .label{
   font-size:14px;
   font-weight:900;
@@ -160,13 +192,22 @@ require_once __DIR__ . "/partials/app_header.php";
   grid-template-columns:1fr 1fr;
   gap:14px;
 }
-.info-card{ padding:18px; }
+
+.info-card{
+  padding:18px;
+}
+
 .info-card h3{
   margin:0 0 14px;
   font-size:19px;
+  line-height:1.1;
   font-weight:900;
 }
-.info-list{ display:grid; gap:0; }
+
+.info-list{
+  display:grid;
+  gap:0;
+}
 
 .info-row{
   display:flex;
@@ -175,12 +216,17 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:14px 0;
   border-bottom:1px solid var(--border);
 }
-.info-row:last-child{ border-bottom:none; }
+
+.info-row:last-child{
+  border-bottom:none;
+}
+
 .info-label{
   color:var(--muted);
   font-size:14px;
   font-weight:700;
 }
+
 .info-value{
   text-align:right;
   font-size:14px;
@@ -188,7 +234,9 @@ require_once __DIR__ . "/partials/app_header.php";
   word-break:break-word;
 }
 
-.full-width{ grid-column:1 / -1; }
+.full-width{
+  grid-column:1 / -1;
+}
 
 .note-box,
 .tag-box,
@@ -198,7 +246,9 @@ require_once __DIR__ . "/partials/app_header.php";
   border-radius:14px;
   padding:14px;
   line-height:1.6;
+  min-width:0;
 }
+
 .note-section-title{
   font-size:12px;
   color:var(--muted);
@@ -207,6 +257,7 @@ require_once __DIR__ . "/partials/app_header.php";
   letter-spacing:.03em;
   margin-bottom:6px;
 }
+
 .note-block + .note-block{
   margin-top:14px;
   padding-top:14px;
@@ -223,7 +274,9 @@ require_once __DIR__ . "/partials/app_header.php";
   padding:6px 10px;
   font-size:12px;
   font-weight:900;
+  white-space:nowrap;
 }
+
 .pill.buy{ color:#16a34a; }
 .pill.sell{ color:#ef4444; }
 .pill.manual{ color:#a855f7; }
@@ -238,7 +291,9 @@ require_once __DIR__ . "/partials/app_header.php";
 .value-loss{ color:#ef4444; font-weight:900; }
 .value-breakeven{ color:#eab308; font-weight:900; }
 
-.muted{ color:var(--muted); }
+.muted{
+  color:var(--muted);
+}
 
 .screenshot-image{
   width:100%;
@@ -248,35 +303,171 @@ require_once __DIR__ . "/partials/app_header.php";
   border:1px solid var(--border);
 }
 
-@media (max-width: 900px){
+@media (max-width:900px){
   .hero-grid,
-  .details-grid{ grid-template-columns:1fr; }
-}
-@media (max-width: 640px){
-  .info-row{
-    flex-direction:column;
-    align-items:flex-start;
+  .details-grid{
+    grid-template-columns:1fr;
   }
-  .info-value{ text-align:left; }
+}
+
+@media (max-width:720px){
+  .log-view-wrap{
+    gap:12px;
+  }
+
+  .trade-page-head{
+    display:grid;
+    gap:10px;
+  }
+
+  .trade-page-head h1{
+    font-size:22px;
+  }
+
+  .trade-page-head p{
+    font-size:12px;
+  }
+
+  .topbar-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    width:100%;
+  }
+
+  .topbar-actions .btn{
+    width:100%;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:12px;
+  }
+
+  .topbar-actions .btn:nth-child(3),
+  .topbar-actions .btn:nth-child(4){
+    grid-column:1 / -1;
+  }
+
+  .hero-card,
+  .info-card{
+    border-radius:18px;
+  }
+
+  .hero-card{
+    padding:13px;
+  }
+
+  .hero-grid{
+    gap:12px;
+  }
+
+  .trade-title{
+    gap:7px;
+    margin-bottom:10px;
+  }
+
+  .trade-title h2{
+    width:100%;
+    font-size:24px;
+  }
+
+  .mini-meta{
+    display:grid;
+    gap:5px;
+    font-size:11px;
+  }
+
+  .result-box{
+    padding:13px;
+    border-radius:14px;
+    text-align:left;
+  }
+
+  .result-box .value{
+    font-size:24px;
+    margin-bottom:8px;
+  }
+
+  .info-card{
+    padding:13px;
+  }
+
+  .info-card h3{
+    font-size:17px;
+    margin-bottom:10px;
+  }
+
+  .info-row{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:10px 0;
+  }
+
+  .info-label{
+    font-size:11px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+
+  .info-value{
+    text-align:left;
+    font-size:13px;
+  }
+
+  .note-box,
+  .tag-box,
+  .screenshot-box{
+    padding:12px;
+    border-radius:14px;
+    font-size:13px;
+  }
+
+  .pill{
+    font-size:10px;
+    padding:5px 8px;
+  }
+}
+
+@media (max-width:390px){
+  .topbar-actions{
+    grid-template-columns:1fr;
+  }
+
+  .topbar-actions .btn:nth-child(3),
+  .topbar-actions .btn:nth-child(4){
+    grid-column:auto;
+  }
+
+  .trade-title h2{
+    font-size:22px;
+  }
+
+  .result-box .value{
+    font-size:22px;
+  }
 }
 </style>
 
 <div class="log-view-wrap">
 
-  <div class="topbar">
-    <div class="topbar-left">
+  <div class="trade-page-head">
+    <div>
       <h1>Trade Details</h1>
       <p>Review the full record for this trade.</p>
     </div>
 
     <div class="topbar-actions">
-      <a href="/trading-journal/trade-history.php" class="btn secondary">← Back to History</a>
-      <a href="/trading-journal/log_edit.php?id=<?= (int)$trade['id'] ?>" class="btn">Edit Trade</a>
+      <a href="/trading-journal/trade-history.php" class="btn secondary">← History</a>
+      <a href="/trading-journal/log_edit.php?id=<?= (int)$trade['id'] ?>" class="btn">Edit</a>
+
       <?php if (!$isClosed): ?>
         <a href="/trading-journal/close_trade.php?id=<?= (int)$trade['id'] ?>" class="btn">Close Trade</a>
       <?php else: ?>
         <a href="/trading-journal/review_form.php?trade_id=<?= (int)$trade['id'] ?>" class="btn">Review Trade</a>
       <?php endif; ?>
+
+      <a href="/trading-journal/log_delete.php?id=<?= (int)$trade['id'] ?>" class="btn danger">Delete Trade</a>
     </div>
   </div>
 
@@ -323,112 +514,37 @@ require_once __DIR__ . "/partials/app_header.php";
     <div class="info-card">
       <h3>Execution Details</h3>
       <div class="info-list">
-        <div class="info-row">
-          <div class="info-label">Symbol</div>
-          <div class="info-value"><?= e($trade['symbol'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Market</div>
-          <div class="info-value"><?= e($trade['market'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Direction</div>
-          <div class="info-value"><?= e($direction !== '' ? $direction : '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Session</div>
-          <div class="info-value"><?= e($trade['session'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Entry Time</div>
-          <div class="info-value"><?= e(fmt_dt($trade['entry_time'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Exit Time</div>
-          <div class="info-value"><?= e(fmt_dt($trade['exit_time'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Entry Price</div>
-          <div class="info-value"><?= e(fmt_price($trade['entry_price'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Stop Loss</div>
-          <div class="info-value"><?= e(fmt_price($trade['stop_loss'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Take Profit</div>
-          <div class="info-value"><?= e(fmt_price($trade['take_profit'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Exit Price</div>
-          <div class="info-value"><?= e(fmt_price($trade['exit_price'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Position Size</div>
-          <div class="info-value"><?= e(fmt_price($trade['position_size'] ?? null, 2)) ?></div>
-        </div>
+        <div class="info-row"><div class="info-label">Symbol</div><div class="info-value"><?= e($trade['symbol'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Market</div><div class="info-value"><?= e($trade['market'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Direction</div><div class="info-value"><?= e($direction !== '' ? $direction : '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Session</div><div class="info-value"><?= e($trade['session'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Entry Time</div><div class="info-value"><?= e(fmt_dt($trade['entry_time'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Exit Time</div><div class="info-value"><?= e(fmt_dt($trade['exit_time'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Entry Price</div><div class="info-value"><?= e(fmt_price($trade['entry_price'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Stop Loss</div><div class="info-value"><?= e(fmt_price($trade['stop_loss'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Take Profit</div><div class="info-value"><?= e(fmt_price($trade['take_profit'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Exit Price</div><div class="info-value"><?= e(fmt_price($trade['exit_price'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Position Size</div><div class="info-value"><?= e(fmt_price($trade['position_size'] ?? null, 2)) ?></div></div>
       </div>
     </div>
 
     <div class="info-card">
       <h3>Journal Record</h3>
       <div class="info-list">
-        <div class="info-row">
-          <div class="info-label">P/L</div>
-          <div class="info-value <?= e($pnlClass) ?>"><?= e(fmt_money($trade['pnl_amount'] ?? 0)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Outcome</div>
-          <div class="info-value"><?= e(ucfirst($outcome)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">R Multiple</div>
-          <div class="info-value"><?= e($trade['r_multiple'] !== null && $trade['r_multiple'] !== '' ? number_format((float)$trade['r_multiple'], 2) . 'R' : '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Risk Amount</div>
-          <div class="info-value"><?= e(fmt_money($trade['risk_amount'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Exit Reason</div>
-          <div class="info-value"><?= e($trade['exit_reason'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Setup</div>
-          <div class="info-value"><?= e($trade['setup'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Reviewed</div>
-          <div class="info-value"><?= !empty($trade['is_reviewed']) ? 'Yes' : 'No' ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Source</div>
-          <div class="info-value"><?= e(strtoupper($source !== '' ? $source : 'manual')) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">External ID</div>
-          <div class="info-value"><?= e($trade['external_id'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">MT5 Ticket</div>
-          <div class="info-value"><?= e($trade['mt5_ticket'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">MT5 Login</div>
-          <div class="info-value"><?= e($trade['mt5_login'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">MT5 Magic</div>
-          <div class="info-value"><?= e($trade['mt5_magic'] ?? '-') ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Created At</div>
-          <div class="info-value"><?= e(fmt_dt($trade['created_at'] ?? null)) ?></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">Updated At</div>
-          <div class="info-value"><?= e(fmt_dt($trade['updated_at'] ?? null)) ?></div>
-        </div>
+        <div class="info-row"><div class="info-label">P/L</div><div class="info-value <?= e($pnlClass) ?>"><?= e(fmt_money($trade['pnl_amount'] ?? 0)) ?></div></div>
+        <div class="info-row"><div class="info-label">Outcome</div><div class="info-value"><?= e(ucfirst($outcome)) ?></div></div>
+        <div class="info-row"><div class="info-label">R Multiple</div><div class="info-value"><?= e($trade['r_multiple'] !== null && $trade['r_multiple'] !== '' ? number_format((float)$trade['r_multiple'], 2) . 'R' : '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Risk Amount</div><div class="info-value"><?= e(fmt_money($trade['risk_amount'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Exit Reason</div><div class="info-value"><?= e($trade['exit_reason'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Setup</div><div class="info-value"><?= e($trade['setup'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Reviewed</div><div class="info-value"><?= !empty($trade['is_reviewed']) ? 'Yes' : 'No' ?></div></div>
+        <div class="info-row"><div class="info-label">Source</div><div class="info-value"><?= e(strtoupper($source !== '' ? $source : 'manual')) ?></div></div>
+        <div class="info-row"><div class="info-label">External ID</div><div class="info-value"><?= e($trade['external_id'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">MT5 Ticket</div><div class="info-value"><?= e($trade['mt5_ticket'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">MT5 Login</div><div class="info-value"><?= e($trade['mt5_login'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">MT5 Magic</div><div class="info-value"><?= e($trade['mt5_magic'] ?? '-') ?></div></div>
+        <div class="info-row"><div class="info-label">Created At</div><div class="info-value"><?= e(fmt_dt($trade['created_at'] ?? null)) ?></div></div>
+        <div class="info-row"><div class="info-label">Updated At</div><div class="info-value"><?= e(fmt_dt($trade['updated_at'] ?? null)) ?></div></div>
       </div>
     </div>
 
