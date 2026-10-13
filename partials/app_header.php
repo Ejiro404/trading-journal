@@ -531,16 +531,6 @@ html.dark .theme-moon{
         <span class="txt">Rules</span>
       </a>
 
-      <a class="nav-item <?= $current==='mt5'?'active':'' ?>" href="/trading-journal/mt5_accounts.php" data-title="MT5 Accounts">
-  <span class="ico" aria-hidden="true">
-    <svg viewBox="0 0 24 24" width="18" height="18">
-      <path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <path d="M8 4v4M16 10v4M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-  </span>
-  <span class="txt">MT5 Accounts</span>
-</a>
-
       <a class="nav-item <?= $current==='settings'?'active':'' ?>" href="/trading-journal/settings.php" data-title="Settings">
         <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a7.8 7.8 0 0 0 .1-2l2-1.2-2-3.4-2.3.7a7.3 7.3 0 0 0-1.7-1L15 5H9l-.5 3.1a7.3 7.3 0 0 0-1.7 1L4.5 8.4l-2 3.4 2 1.2a7.8 7.8 0 0 0 .1 2l-2 1.2 2 3.4 2.3-.7a7.3 7.3 0 0 0 1.7 1L9 23h6l.5-3.1a7.3 7.3 0 0 0 1.7-1l2.3.7 2-3.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
         <span class="txt">Settings</span>

@@ -20,16 +20,59 @@ function fmt_dt($value) {
     return $ts ? date('d M Y, h:i A', $ts) : '-';
 }
 
+function trade_result_text(array $trade): string {
+    if ($trade['r_multiple'] !== null && $trade['r_multiple'] !== '') {
+        return number_format((float)$trade['r_multiple'], 2) . 'R';
+    }
+
+    if ($trade['pnl_amount'] !== null && $trade['pnl_amount'] !== '') {
+        return 'P/L ' . number_format((float)$trade['pnl_amount'], 2);
+    }
+
+    if (!empty($trade['outcome'])) {
+        return ucfirst((string)$trade['outcome']);
+    }
+
+    return 'Closed';
+}
+
+function trade_result_class(array $trade): string {
+    if ($trade['r_multiple'] !== null && $trade['r_multiple'] !== '') {
+        return ((float)$trade['r_multiple'] >= 0) ? 'good' : 'bad';
+    }
+
+    if ($trade['pnl_amount'] !== null && $trade['pnl_amount'] !== '') {
+        return ((float)$trade['pnl_amount'] >= 0) ? 'good' : 'bad';
+    }
+
+    $outcome = strtolower((string)($trade['outcome'] ?? ''));
+    if ($outcome === 'win') return 'good';
+    if ($outcome === 'loss') return 'bad';
+
+    return 'closed';
+}
+
 $stmt = $conn->prepare("
   SELECT
     id,
     entry_time,
+    exit_time,
+    exit_price,
+    pnl_amount,
+    outcome,
     symbol,
     direction,
-    r_multiple
+    r_multiple,
+    source,
+    sync_status
   FROM trades
   WHERE user_id = ?
-    AND r_multiple IS NOT NULL
+    AND (
+      exit_time IS NOT NULL
+      OR exit_price IS NOT NULL
+      OR pnl_amount IS NOT NULL
+      OR r_multiple IS NOT NULL
+    )
     AND (is_reviewed = 0 OR is_reviewed IS NULL)
   ORDER BY entry_time ASC
   LIMIT 200
@@ -154,6 +197,7 @@ require_once __DIR__ . "/partials/app_header.php";
 .pill.sell{ color:#ef4444; }
 .pill.good{ color:#16a34a; }
 .pill.bad{ color:#ef4444; }
+.pill.closed{ color:#64748b; }
 
 .empty-state{
   padding:28px 18px;
@@ -318,7 +362,7 @@ require_once __DIR__ . "/partials/app_header.php";
               <th>Date</th>
               <th>Symbol</th>
               <th>Side</th>
-              <th>R</th>
+              <th>Result</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -327,8 +371,8 @@ require_once __DIR__ . "/partials/app_header.php";
               <?php
                 $dir = strtoupper((string)$t['direction']);
                 $dirClass = $dir === 'BUY' ? 'buy' : 'sell';
-                $rVal = (float)$t['r_multiple'];
-                $rClass = $rVal >= 0 ? 'good' : 'bad';
+                $resultText = trade_result_text($t);
+                $resultClass = trade_result_class($t);
               ?>
               <tr>
                 <td><?= e(fmt_dt($t['entry_time'])) ?></td>
@@ -337,7 +381,7 @@ require_once __DIR__ . "/partials/app_header.php";
                   <span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span>
                 </td>
                 <td>
-                  <span class="pill <?= e($rClass) ?>"><?= e(number_format($rVal, 2)) ?>R</span>
+                  <span class="pill <?= e($resultClass) ?>"><?= e($resultText) ?></span>
                 </td>
                 <td>
                   <a class="btn" href="/trading-journal/review_form.php?trade_id=<?= (int)$t['id'] ?>">Review</a>
@@ -353,8 +397,8 @@ require_once __DIR__ . "/partials/app_header.php";
           <?php
             $dir = strtoupper((string)$t['direction']);
             $dirClass = $dir === 'BUY' ? 'buy' : 'sell';
-            $rVal = (float)$t['r_multiple'];
-            $rClass = $rVal >= 0 ? 'good' : 'bad';
+            $resultText = trade_result_text($t);
+            $resultClass = trade_result_class($t);
           ?>
           <article class="mobile-review-card">
             <div class="mobile-review-top">
@@ -364,7 +408,7 @@ require_once __DIR__ . "/partials/app_header.php";
               </div>
 
               <div class="mobile-review-r">
-                <span class="pill <?= e($rClass) ?>"><?= e(number_format($rVal, 2)) ?>R</span>
+                <span class="pill <?= e($resultClass) ?>"><?= e($resultText) ?></span>
               </div>
             </div>
 

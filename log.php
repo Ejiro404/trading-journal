@@ -24,6 +24,69 @@ function fmt_money($value) {
     return number_format((float)$value, 2);
 }
 
+function trade_source_label($source, $sync_status) {
+    $source = strtolower((string)$source);
+    $sync_status = strtolower((string)$sync_status);
+
+    if ($source === 'mt5' && $sync_status === 'history') return 'MT5 History';
+    if ($source === 'mt5') return 'MT5 Live';
+
+    return 'Manual';
+}
+
+function trade_source_class($source, $sync_status) {
+    $source = strtolower((string)$source);
+    $sync_status = strtolower((string)$sync_status);
+
+    if ($source === 'mt5' && $sync_status === 'history') return 'mt5-history';
+    if ($source === 'mt5') return 'mt5-live';
+
+    return 'manual';
+}
+
+function trade_is_closed(array $trade): bool {
+    return (
+        !empty($trade['exit_time']) ||
+        $trade['exit_price'] !== null ||
+        $trade['pnl_amount'] !== null ||
+        $trade['r_multiple'] !== null
+    );
+}
+
+function trade_result_text(array $trade): string {
+    if ($trade['r_multiple'] !== null && $trade['r_multiple'] !== '') {
+        return number_format((float)$trade['r_multiple'], 2) . 'R';
+    }
+
+    if ($trade['pnl_amount'] !== null && $trade['pnl_amount'] !== '') {
+        return 'P/L ' . number_format((float)$trade['pnl_amount'], 2);
+    }
+
+    if (trade_is_closed($trade)) {
+        return 'Closed';
+    }
+
+    return 'Open';
+}
+
+function trade_result_class(array $trade): string {
+    if (!trade_is_closed($trade)) return 'pending';
+
+    if ($trade['r_multiple'] !== null && $trade['r_multiple'] !== '') {
+        return ((float)$trade['r_multiple'] >= 0) ? 'good' : 'bad';
+    }
+
+    if ($trade['pnl_amount'] !== null && $trade['pnl_amount'] !== '') {
+        return ((float)$trade['pnl_amount'] >= 0) ? 'good' : 'bad';
+    }
+
+    $outcome = strtolower((string)($trade['outcome'] ?? ''));
+    if ($outcome === 'win') return 'good';
+    if ($outcome === 'loss') return 'bad';
+
+    return 'closed';
+}
+
 /** Filters */
 $q_date     = trim($_GET['date'] ?? '');
 $q_symbol   = trim($_GET['symbol'] ?? '');
@@ -66,11 +129,17 @@ $sql = "
   SELECT
     t.id,
     t.entry_time,
+    t.exit_time,
+    t.exit_price,
+    t.pnl_amount,
+    t.outcome,
     t.symbol,
     t.direction,
     t.risk_amount,
     t.r_multiple,
     t.is_reviewed,
+    t.source,
+    t.sync_status,
     MIN(tt.name) AS strategy
   FROM trades t
   LEFT JOIN trade_tag_map tm
@@ -100,9 +169,15 @@ if ($q_to !== '') {
     $types .= "s";
 }
 
-if ($q_outcome === 'win')  $sql .= " AND t.r_multiple > 0 ";
-if ($q_outcome === 'loss') $sql .= " AND t.r_multiple < 0 ";
-if ($q_outcome === 'be')   $sql .= " AND t.r_multiple = 0 ";
+if ($q_outcome === 'win') {
+    $sql .= " AND (t.r_multiple > 0 OR t.pnl_amount > 0 OR t.outcome = 'win') ";
+}
+if ($q_outcome === 'loss') {
+    $sql .= " AND (t.r_multiple < 0 OR t.pnl_amount < 0 OR t.outcome = 'loss') ";
+}
+if ($q_outcome === 'be') {
+    $sql .= " AND (t.r_multiple = 0 OR t.pnl_amount = 0 OR t.outcome = 'breakeven') ";
+}
 
 if ($q_strategy === '__none__') {
     $sql .= " AND NOT EXISTS (
@@ -131,7 +206,20 @@ if ($q_strategy === '__none__') {
 }
 
 $sql .= "
-  GROUP BY t.id, t.entry_time, t.symbol, t.direction, t.risk_amount, t.r_multiple, t.is_reviewed
+  GROUP BY
+    t.id,
+    t.entry_time,
+    t.exit_time,
+    t.exit_price,
+    t.pnl_amount,
+    t.outcome,
+    t.symbol,
+    t.direction,
+    t.risk_amount,
+    t.r_multiple,
+    t.is_reviewed,
+    t.source,
+    t.sync_status
   ORDER BY t.entry_time DESC
   LIMIT 200
 ";
@@ -172,6 +260,27 @@ require_once __DIR__ . "/partials/app_header.php";
   margin:6px 0 0;
   color:var(--muted);
   line-height:1.6;
+}
+
+.page-head-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.sync-btn{
+  background:
+    radial-gradient(circle at top left, rgba(109,94,252,.20), transparent 42%),
+    var(--card);
+  color:var(--text);
+  border-color:rgba(109,94,252,.32);
+}
+
+.sync-btn:hover{
+  box-shadow:
+    var(--shadow),
+    0 0 0 4px rgba(109,94,252,.10);
 }
 
 .panel,
@@ -296,7 +405,7 @@ require_once __DIR__ . "/partials/app_header.php";
 .log-table{
   width:100%;
   border-collapse:collapse;
-  min-width:920px;
+  min-width:1020px;
 }
 
 .log-table th,
@@ -338,6 +447,21 @@ require_once __DIR__ . "/partials/app_header.php";
 .pill.good{ color:#16a34a; }
 .pill.bad{ color:#ef4444; }
 .pill.pending{ color:#eab308; }
+.pill.closed{ color:#64748b; }
+
+.pill.manual{
+  color:var(--muted);
+}
+
+.pill.mt5-live{
+  color:#2563eb;
+  border-color:rgba(37,99,235,.28);
+}
+
+.pill.mt5-history{
+  color:#7c3aed;
+  border-color:rgba(124,58,237,.30);
+}
 
 .strategy-chip{
   display:inline-flex;
@@ -396,7 +520,14 @@ require_once __DIR__ . "/partials/app_header.php";
     font-size:12px;
   }
 
-  .page-head .btn{
+  .page-head-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    width:100%;
+  }
+
+  .page-head-actions .btn{
     width:100%;
     min-height:38px;
     font-size:12px;
@@ -587,8 +718,10 @@ require_once __DIR__ . "/partials/app_header.php";
       <h1><?= e($dateTitle !== "" ? $dateTitle : "Log") ?></h1>
       <p><?= $dateTitle !== "" ? "Filtered view for a single day." : "A structured record of execution and outcomes." ?></p>
     </div>
-    <div>
+
+    <div class="page-head-actions">
       <a class="btn" href="/trading-journal/log_new.php">+ Log Trade</a>
+      <a class="btn secondary sync-btn" href="/trading-journal/mt5_accounts.php">Auto Sync / Connect MT5</a>
     </div>
   </div>
 
@@ -699,11 +832,12 @@ require_once __DIR__ . "/partials/app_header.php";
           <thead>
             <tr>
               <th>Date</th>
+              <th>Source</th>
               <th>Symbol</th>
               <th>Side</th>
               <th>Strategy</th>
               <th>Risk (1R)</th>
-              <th>R</th>
+              <th>Result</th>
               <th>Review</th>
               <th>Action</th>
             </tr>
@@ -711,7 +845,6 @@ require_once __DIR__ . "/partials/app_header.php";
           <tbody>
             <?php foreach ($rows as $r): ?>
               <?php
-                $rm = $r['r_multiple'];
                 $strategy = $r['strategy'] ? (string)$r['strategy'] : "—";
                 $linkStr = ($strategy === "—")
                   ? ("/trading-journal/log.php?" . http_build_query($base + ['strategy' => '__none__']))
@@ -719,22 +852,21 @@ require_once __DIR__ . "/partials/app_header.php";
 
                 $dir = strtoupper((string)$r['direction']);
                 $dirClass = $dir === 'BUY' ? 'buy' : 'sell';
+
+                $sourceLabel = trade_source_label($r['source'] ?? 'manual', $r['sync_status'] ?? '');
+                $sourceClass = trade_source_class($r['source'] ?? 'manual', $r['sync_status'] ?? '');
+
+                $resultText = trade_result_text($r);
+                $resultClass = trade_result_class($r);
               ?>
               <tr>
                 <td><?= e(fmt_dt($r['entry_time'])) ?></td>
+                <td><span class="pill <?= e($sourceClass) ?>"><?= e($sourceLabel) ?></span></td>
                 <td><strong><?= e($r['symbol']) ?></strong></td>
                 <td><span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span></td>
                 <td><a class="strategy-chip" href="<?= e($linkStr) ?>"><?= e($strategy) ?></a></td>
                 <td><?= e(fmt_money($r['risk_amount'])) ?></td>
-                <td>
-                  <?php if ($rm === null): ?>
-                    <span class="pill pending">Open</span>
-                  <?php else: ?>
-                    <span class="pill <?= ((float)$rm >= 0 ? 'good' : 'bad') ?>">
-                      <?= e(number_format((float)$rm, 2)) ?>R
-                    </span>
-                  <?php endif; ?>
-                </td>
+                <td><span class="pill <?= e($resultClass) ?>"><?= e($resultText) ?></span></td>
                 <td>
                   <?php if ((int)$r['is_reviewed'] === 1): ?>
                     <span class="pill good">Reviewed</span>
@@ -754,7 +886,6 @@ require_once __DIR__ . "/partials/app_header.php";
       <div class="mobile-log-list">
         <?php foreach ($rows as $r): ?>
           <?php
-            $rm = $r['r_multiple'];
             $strategy = $r['strategy'] ? (string)$r['strategy'] : "—";
             $linkStr = ($strategy === "—")
               ? ("/trading-journal/log.php?" . http_build_query($base + ['strategy' => '__none__']))
@@ -762,8 +893,12 @@ require_once __DIR__ . "/partials/app_header.php";
 
             $dir = strtoupper((string)$r['direction']);
             $dirClass = $dir === 'BUY' ? 'buy' : 'sell';
-            $rClass = ($rm === null) ? 'pending' : (((float)$rm >= 0) ? 'good' : 'bad');
-            $rText = ($rm === null) ? 'Open' : number_format((float)$rm, 2) . 'R';
+
+            $sourceLabel = trade_source_label($r['source'] ?? 'manual', $r['sync_status'] ?? '');
+            $sourceClass = trade_source_class($r['source'] ?? 'manual', $r['sync_status'] ?? '');
+
+            $resultText = trade_result_text($r);
+            $resultClass = trade_result_class($r);
           ?>
           <article class="mobile-log-card">
             <div class="mobile-log-top">
@@ -773,11 +908,12 @@ require_once __DIR__ . "/partials/app_header.php";
               </div>
 
               <div class="mobile-r">
-                <span class="pill <?= e($rClass) ?>"><?= e($rText) ?></span>
+                <span class="pill <?= e($resultClass) ?>"><?= e($resultText) ?></span>
               </div>
             </div>
 
             <div class="mobile-pill-row">
+              <span class="pill <?= e($sourceClass) ?>"><?= e($sourceLabel) ?></span>
               <span class="pill <?= e($dirClass) ?>"><?= e($dir) ?></span>
 
               <?php if ((int)$r['is_reviewed'] === 1): ?>

@@ -3,8 +3,8 @@ require_once __DIR__ . "/config/db.php";
 require_once __DIR__ . "/config/auth.php";
 require_login();
 
-$current = "mt5";
-$pageTitle = "MT5 Accounts • NXLOG Analytics";
+$current = "log";
+$pageTitle = "Connect MT5 • NXLOG Analytics";
 
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 $error = "";
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param("iissss", $user_id, $loginNum, $account_server, $account_name, $broker_name, $sync_token);
         $stmt->execute();
 
-        $ok = "MT5 account linked successfully.";
+        $ok = "MT5 account linked successfully. Copy the sync token into your EA settings.";
       } catch (Throwable $e) {
         $error = "Could not add this MT5 account. It may already exist.";
       }
@@ -92,6 +92,9 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $accounts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+$webhookUrl = "/trading-journal/api/mt5/trade-hook.php";
+$eaDownload = "/trading-journal/downloads/NXLOG_Sync.mq5";
+
 require_once __DIR__ . "/partials/app_header.php";
 ?>
 
@@ -99,6 +102,8 @@ require_once __DIR__ . "/partials/app_header.php";
 .mt5-wrap{
   display:grid;
   gap:14px;
+  width:100%;
+  max-width:100%;
 }
 
 .page-head{
@@ -123,19 +128,106 @@ require_once __DIR__ . "/partials/app_header.php";
   line-height:1.6;
 }
 
-.mt5-grid{
-  display:grid;
-  grid-template-columns:.9fr 1.1fr;
-  gap:14px;
+.page-head-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
-.mt5-card{
+.hero-card,
+.mt5-card,
+.setup-card{
   background:var(--card);
   border:1px solid var(--border);
   border-radius:18px;
   box-shadow:var(--shadow);
   padding:18px;
   min-width:0;
+}
+
+.hero-card{
+  background:
+    radial-gradient(circle at top left, rgba(109,94,252,.14), transparent 34%),
+    var(--card);
+}
+
+.hero-layout{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:14px;
+  align-items:stretch;
+}
+
+.hero-title{
+  margin:0 0 8px;
+  font-size:24px;
+  line-height:1.08;
+  font-weight:950;
+  letter-spacing:-.035em;
+}
+
+.hero-sub{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+  line-height:1.7;
+}
+
+.hero-mini-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:16px;
+}
+
+.hero-mini{
+  border:1px solid var(--border);
+  background:var(--pill);
+  border-radius:14px;
+  padding:12px;
+}
+
+.hero-mini-label{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:6px;
+}
+
+.hero-mini-value{
+  font-size:13px;
+  font-weight:900;
+}
+
+.hero-panel{
+  border:1px solid var(--border);
+  background:var(--pill);
+  border-radius:16px;
+  padding:14px;
+  display:grid;
+  align-content:center;
+  gap:10px;
+}
+
+.hero-panel-title{
+  font-size:13px;
+  font-weight:950;
+}
+
+.hero-panel-text{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.6;
+}
+
+.mt5-grid{
+  display:grid;
+  grid-template-columns:.9fr 1.1fr;
+  gap:14px;
 }
 
 .card-title{
@@ -272,40 +364,86 @@ require_once __DIR__ . "/partials/app_header.php";
   word-break:break-all;
 }
 
-.help-list{
+.setup-grid{
   display:grid;
-  gap:10px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
 }
 
-.help-item{
+.setup-step{
   border:1px solid var(--border);
   background:var(--pill);
-  border-radius:14px;
-  padding:12px 14px;
+  border-radius:16px;
+  padding:14px;
 }
 
-.help-title{
+.step-num{
+  width:30px;
+  height:30px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(109,94,252,.35);
+  background:rgba(109,94,252,.10);
   font-size:12px;
-  font-weight:900;
-  color:var(--muted);
-  text-transform:uppercase;
-  letter-spacing:.03em;
+  font-weight:950;
+  margin-bottom:10px;
+}
+
+.step-title{
+  font-size:14px;
+  font-weight:950;
   margin-bottom:6px;
 }
 
-.help-text{
-  font-size:13px;
+.step-text{
+  color:var(--muted);
+  font-size:12px;
   font-weight:700;
   line-height:1.6;
 }
 
-@media (max-width:900px){
+.code-line{
+  display:block;
+  margin-top:8px;
+  padding:9px 10px;
+  border-radius:12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size:11px;
+  line-height:1.5;
+  word-break:break-all;
+}
+
+.notice{
+  border:1px dashed var(--border);
+  background:var(--pill);
+  border-radius:16px;
+  padding:14px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+  line-height:1.7;
+}
+
+@media (max-width:1050px){
+  .hero-layout,
   .mt5-grid{
     grid-template-columns:1fr;
+  }
+
+  .setup-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
 
 @media (max-width:720px){
+  .page-head{
+    display:grid;
+    gap:10px;
+  }
+
   .page-head h1{
     font-size:22px;
   }
@@ -314,18 +452,32 @@ require_once __DIR__ . "/partials/app_header.php";
     font-size:12px;
   }
 
-  .mt5-card{
+  .page-head-actions,
+  .actions{
+    display:grid;
+    grid-template-columns:1fr;
+    width:100%;
+  }
+
+  .page-head-actions .btn,
+  .actions .btn{
+    width:100%;
+  }
+
+  .hero-card,
+  .mt5-card,
+  .setup-card{
     padding:13px;
     border-radius:16px;
   }
 
-  .actions{
-    display:grid;
-    grid-template-columns:1fr;
+  .hero-title{
+    font-size:21px;
   }
 
-  .actions .btn{
-    width:100%;
+  .hero-mini-grid,
+  .setup-grid{
+    grid-template-columns:1fr;
   }
 }
 </style>
@@ -334,12 +486,13 @@ require_once __DIR__ . "/partials/app_header.php";
 
   <div class="page-head">
     <div>
-      <h1>MT5 Accounts</h1>
-      <p>Link MT5 accounts securely so your EA can sync trades into NXLOG automatically.</p>
+      <h1>Connect MT5</h1>
+      <p>Auto-sync trades from MetaTrader 5 into your NXLOG journal using a secure account token.</p>
     </div>
 
-    <div>
-      <a class="btn secondary" href="/trading-journal/settings.php">Back to Settings</a>
+    <div class="page-head-actions">
+      <a class="btn secondary" href="/trading-journal/log.php">Back to Log</a>
+      <a class="btn" href="<?= e($eaDownload) ?>" download>Download NXLOG EA</a>
     </div>
   </div>
 
@@ -350,6 +503,88 @@ require_once __DIR__ . "/partials/app_header.php";
   <?php if ($error): ?>
     <div class="alert err"><?= e($error) ?></div>
   <?php endif; ?>
+
+  <div class="hero-card">
+    <div class="hero-layout">
+      <div>
+        <h2 class="hero-title">One EA. One token. Automated journaling.</h2>
+        <p class="hero-sub">
+          Link an MT5 account, copy the generated sync token into the NXLOG Sync EA, and your trades can flow into NXLOG automatically.
+          One EA attached to one chart can listen to trade activity across the whole MT5 account.
+        </p>
+
+        <div class="hero-mini-grid">
+          <div class="hero-mini">
+            <div class="hero-mini-label">Live Sync</div>
+            <div class="hero-mini-value">Open + close trades</div>
+          </div>
+
+          <div class="hero-mini">
+            <div class="hero-mini-label">History</div>
+            <div class="hero-mini-value">30-day import</div>
+          </div>
+
+          <div class="hero-mini">
+            <div class="hero-mini-label">Security</div>
+            <div class="hero-mini-value">Private token</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-panel">
+        <div class="hero-panel-title">Free account limit</div>
+        <div class="hero-panel-text">
+          Free accounts can import up to 30 days of MT5 trade history. Extended or unlimited history will be available later for premium accounts.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <h2 class="card-title">How to connect your MT5 account</h2>
+    <div class="card-sub">Follow these steps once per MT5 account.</div>
+
+    <div class="setup-grid">
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-title">Link account</div>
+        <div class="step-text">Enter your MT5 login, server, account label, and broker name. NXLOG will generate a private sync token.</div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-title">Download EA</div>
+        <div class="step-text">Download <strong>NXLOG_Sync.mq5</strong> and place it inside your MetaTrader 5 Experts folder.</div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-title">Paste token</div>
+        <div class="step-text">Open the EA settings and paste your generated sync token into the <strong>SyncToken</strong> input.</div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div class="step-title">Enable WebRequest</div>
+        <div class="step-text">
+          In MT5, go to Tools → Options → Expert Advisors and allow WebRequest for:
+          <span class="code-line">http://192.168.0.172</span>
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">5</div>
+        <div class="step-title">Attach to one chart</div>
+        <div class="step-text">Attach the EA to only one chart. It can listen to account-wide trading events from that single chart instance.</div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">6</div>
+        <div class="step-title">Confirm sync</div>
+        <div class="step-text">Place or close a test trade. Then check Trade History and MT5 Experts logs for a successful sync response.</div>
+      </div>
+    </div>
+  </div>
 
   <div class="mt5-grid">
 
@@ -393,13 +628,12 @@ require_once __DIR__ . "/partials/app_header.php";
     <div class="mt5-card">
       <h2 class="card-title">Connected Accounts</h2>
       <div class="card-sub">
-        Use the sync token inside your NXLOG MT5 EA. Never share this token publicly.
+        Copy the sync token into your NXLOG Sync EA. Never share this token publicly.
       </div>
 
       <?php if (!$accounts): ?>
-        <div class="help-item">
-          <div class="help-title">No MT5 Account Yet</div>
-          <div class="help-text">Create one on the left, then paste the generated token into your EA settings.</div>
+        <div class="notice">
+          No MT5 account is linked yet. Create one on the left, then copy the generated sync token into your EA settings.
         </div>
       <?php else: ?>
         <div class="account-list">
@@ -410,6 +644,7 @@ require_once __DIR__ . "/partials/app_header.php";
                   <div class="account-title">
                     <?= e($a['account_name'] ?: "MT5 Account") ?>
                   </div>
+
                   <div class="account-sub">
                     Login: <?= e($a['account_login']) ?>
                     <?php if (!empty($a['account_server'])): ?>
@@ -459,29 +694,27 @@ require_once __DIR__ . "/partials/app_header.php";
 
   </div>
 
-  <div class="mt5-card">
-    <h2 class="card-title">EA Setup Notes</h2>
-    <div class="help-list">
-      <div class="help-item">
-        <div class="help-title">Webhook URL</div>
-        <div class="help-text">
-          Your EA should post trade events to:
-          <strong>/trading-journal/api/mt5/trade-hook.php</strong>
+  <div class="setup-card">
+    <h2 class="card-title">Technical details</h2>
+    <div class="card-sub">Use this when configuring or troubleshooting the EA.</div>
+
+    <div class="setup-grid">
+      <div class="setup-step">
+        <div class="step-title">Webhook endpoint</div>
+        <div class="step-text">
+          The EA sends trade events to:
+          <span class="code-line"><?= e($webhookUrl) ?></span>
         </div>
       </div>
 
-      <div class="help-item">
-        <div class="help-title">Required Security</div>
-        <div class="help-text">
-          The EA should send the account sync token in the JSON payload. The webhook will use it to identify the correct user and MT5 account.
-        </div>
+      <div class="setup-step">
+        <div class="step-title">Supported events</div>
+        <div class="step-text">NXLOG currently supports open, close, and historical trade sync events from MT5.</div>
       </div>
 
-      <div class="help-item">
-        <div class="help-title">Supported Events</div>
-        <div class="help-text">
-          OPEN, UPDATE, and CLOSE events will be supported by the hardened webhook.
-        </div>
+      <div class="setup-step">
+        <div class="step-title">One EA only</div>
+        <div class="step-text">Attach the EA once per MT5 terminal/account. Do not attach the same token to multiple charts unnecessarily.</div>
       </div>
     </div>
   </div>

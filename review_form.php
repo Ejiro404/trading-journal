@@ -21,6 +21,22 @@ function fmt_dt($value) {
   return $ts ? date('d M Y, h:i A', $ts) : '-';
 }
 
+function fmt_result($trade) {
+  if ($trade['r_multiple'] !== null && $trade['r_multiple'] !== '') {
+    return number_format((float)$trade['r_multiple'], 2) . "R";
+  }
+
+  if ($trade['pnl_amount'] !== null && $trade['pnl_amount'] !== '') {
+    return number_format((float)$trade['pnl_amount'], 2);
+  }
+
+  if (!empty($trade['outcome'])) {
+    return ucfirst((string)$trade['outcome']);
+  }
+
+  return "-";
+}
+
 function get_or_create_tag(mysqli $conn, int $user_id, string $type, string $name): int {
   $name = trim($name);
   if ($name === "") return 0;
@@ -63,7 +79,18 @@ if ($trade_id <= 0) {
 
 /** Load trade */
 $tstmt = $conn->prepare("
-  SELECT id, symbol, direction, entry_time, r_multiple
+  SELECT
+    id,
+    symbol,
+    direction,
+    entry_time,
+    exit_time,
+    exit_price,
+    pnl_amount,
+    outcome,
+    r_multiple,
+    source,
+    sync_status
   FROM trades
   WHERE id=? AND user_id=?
   LIMIT 1
@@ -77,8 +104,15 @@ if (!$trade) {
   exit("Trade not found.");
 }
 
-if ($trade['r_multiple'] === null) {
-  exit("Close the trade first (R must be calculated) before reviewing.");
+$isClosed = (
+  !empty($trade['exit_time']) ||
+  $trade['exit_price'] !== null ||
+  $trade['pnl_amount'] !== null ||
+  $trade['r_multiple'] !== null
+);
+
+if (!$isClosed) {
+  exit("Close the trade first before reviewing.");
 }
 
 /** Existing review */
@@ -166,395 +200,70 @@ require_once __DIR__ . "/partials/app_header.php";
 ?>
 
 <style>
-.reviewform-wrap{
-  display:grid;
-  gap:14px;
-  width:100%;
-  max-width:100%;
-}
+.reviewform-wrap{display:grid;gap:14px;width:100%;max-width:100%;}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.page-head h1{margin:0;font-size:28px;line-height:1.05;font-weight:900;letter-spacing:-.03em;}
+.page-head p{margin:6px 0 0;color:var(--muted);line-height:1.6;}
+.page-head-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.review-shell{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;}
+.form-panel,.context-panel{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:16px;min-width:0;}
+.panel-title{margin:0 0 4px;font-size:20px;line-height:1.1;font-weight:900;}
+.panel-sub{color:var(--muted);font-size:13px;font-weight:700;line-height:1.6;margin-bottom:14px;}
+.alert{border:1px solid var(--border);background:var(--pill);border-radius:14px;padding:12px 14px;font-size:14px;font-weight:800;margin-bottom:14px;}
+.alert.err{color:#ef4444;}
+.trade-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;}
+.summary-box{border:1px solid var(--border);background:var(--pill);border-radius:14px;padding:12px 14px;min-width:0;}
+.summary-label{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:900;margin-bottom:6px;}
+.summary-value{font-size:16px;font-weight:900;line-height:1.3;word-break:break-word;}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.field{display:grid;gap:6px;min-width:0;}
+.field label{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:0;}
+.field input,.field textarea{width:100%;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:12px;padding:10px 12px;outline:none;font-size:16px;}
+.field input{min-height:44px;}
+.field textarea{min-height:140px;resize:vertical;}
+.span-2{grid-column:1 / -1;}
+.chipgrid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.chipbox{position:relative;display:inline-flex;align-items:center;}
+.chipbox input{position:absolute;opacity:0;pointer-events:none;}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:var(--pill);color:var(--text);font-weight:900;font-size:12px;cursor:pointer;user-select:none;transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;}
+.chip:hover{box-shadow:var(--shadow);transform:translateY(-1px);}
+.chipbox input:checked + .chip{border-color:rgba(109,94,252,.45);box-shadow:0 0 0 4px rgba(109,94,252,.10);}
+.helper-list{display:grid;gap:10px;}
+.helper-item{border:1px solid var(--border);background:var(--pill);border-radius:14px;padding:12px 14px;}
+.helper-item-title{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:900;margin-bottom:6px;}
+.helper-item-text{font-size:13px;line-height:1.6;font-weight:700;}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
 
-.page-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
-.page-head h1{
-  margin:0;
-  font-size:28px;
-  line-height:1.05;
-  font-weight:900;
-  letter-spacing:-.03em;
-}
-
-.page-head p{
-  margin:6px 0 0;
-  color:var(--muted);
-  line-height:1.6;
-}
-
-.page-head-actions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.review-shell{
-  display:grid;
-  grid-template-columns:1.1fr .9fr;
-  gap:14px;
-}
-
-.form-panel,
-.context-panel{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow:var(--shadow);
-  padding:16px;
-  min-width:0;
-}
-
-.panel-title{
-  margin:0 0 4px;
-  font-size:20px;
-  line-height:1.1;
-  font-weight:900;
-}
-
-.panel-sub{
-  color:var(--muted);
-  font-size:13px;
-  font-weight:700;
-  line-height:1.6;
-  margin-bottom:14px;
-}
-
-.alert{
-  border:1px solid var(--border);
-  background:var(--pill);
-  border-radius:14px;
-  padding:12px 14px;
-  font-size:14px;
-  font-weight:800;
-  margin-bottom:14px;
-}
-
-.alert.err{
-  color:#ef4444;
-}
-
-.trade-summary{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  margin-bottom:14px;
-}
-
-.summary-box{
-  border:1px solid var(--border);
-  background:var(--pill);
-  border-radius:14px;
-  padding:12px 14px;
-  min-width:0;
-}
-
-.summary-label{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:.03em;
-  color:var(--muted);
-  font-weight:900;
-  margin-bottom:6px;
-}
-
-.summary-value{
-  font-size:16px;
-  font-weight:900;
-  line-height:1.3;
-  word-break:break-word;
-}
-
-.form-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-
-.field{
-  display:grid;
-  gap:6px;
-  min-width:0;
-}
-
-.field label{
-  font-size:12px;
-  font-weight:900;
-  color:var(--muted);
-  text-transform:uppercase;
-  letter-spacing:.03em;
-  margin:0;
-}
-
-.field input,
-.field textarea{
-  width:100%;
-  border:1px solid var(--border);
-  background:var(--bg);
-  color:var(--text);
-  border-radius:12px;
-  padding:10px 12px;
-  outline:none;
-  font-size:16px;
-}
-
-.field input{
-  min-height:44px;
-}
-
-.field textarea{
-  min-height:140px;
-  resize:vertical;
-}
-
-.span-2{
-  grid-column:1 / -1;
-}
-
-.chipgrid{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:8px;
-}
-
-.chipbox{
-  position:relative;
-  display:inline-flex;
-  align-items:center;
-}
-
-.chipbox input{
-  position:absolute;
-  opacity:0;
-  pointer-events:none;
-}
-
-.chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 12px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  background:var(--pill);
-  color:var(--text);
-  font-weight:900;
-  font-size:12px;
-  cursor:pointer;
-  user-select:none;
-  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-}
-
-.chip:hover{
-  box-shadow:var(--shadow);
-  transform:translateY(-1px);
-}
-
-.chipbox input:checked + .chip{
-  border-color:rgba(109,94,252,.45);
-  box-shadow:0 0 0 4px rgba(109,94,252,.10);
-}
-
-.helper-list{
-  display:grid;
-  gap:10px;
-}
-
-.helper-item{
-  border:1px solid var(--border);
-  background:var(--pill);
-  border-radius:14px;
-  padding:12px 14px;
-}
-
-.helper-item-title{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:.03em;
-  color:var(--muted);
-  font-weight:900;
-  margin-bottom:6px;
-}
-
-.helper-item-text{
-  font-size:13px;
-  line-height:1.6;
-  font-weight:700;
-}
-
-.actions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:16px;
-}
-
-@media (max-width:1100px){
-  .review-shell{
-    grid-template-columns:1fr;
-  }
-}
-
-@media (max-width:820px){
-  .trade-summary{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-
-  .form-grid{
-    grid-template-columns:1fr;
-  }
-}
-
+@media (max-width:1100px){.review-shell{grid-template-columns:1fr;}}
+@media (max-width:820px){.trade-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.form-grid{grid-template-columns:1fr;}}
 @media (max-width:720px){
-  .reviewform-wrap{
-    gap:12px;
-  }
-
-  .page-head{
-    display:grid;
-    gap:10px;
-  }
-
-  .page-head h1{
-    font-size:22px;
-  }
-
-  .page-head p{
-    font-size:12px;
-  }
-
-  .page-head-actions{
-    width:100%;
-  }
-
-  .page-head-actions .btn{
-    width:100%;
-    min-height:36px;
-    padding:8px 10px;
-    font-size:12px;
-  }
-
-  .form-panel,
-  .context-panel{
-    padding:13px;
-    border-radius:18px;
-  }
-
-  .panel-title{
-    font-size:17px;
-  }
-
-  .panel-sub{
-    font-size:11px;
-    margin-bottom:12px;
-  }
-
-  .alert{
-    font-size:12px;
-    padding:10px 12px;
-  }
-
-  .trade-summary{
-    grid-template-columns:1fr 1fr;
-    gap:10px;
-    margin-bottom:12px;
-  }
-
-  .summary-box{
-    padding:10px 12px;
-    border-radius:14px;
-  }
-
-  .summary-label{
-    font-size:10px;
-    margin-bottom:5px;
-  }
-
-  .summary-value{
-    font-size:13px;
-  }
-
-  .form-grid{
-    gap:10px;
-  }
-
-  .field label{
-    font-size:10px;
-  }
-
-  .field input{
-    min-height:38px;
-    padding:8px 10px;
-    border-radius:12px;
-    font-size:16px;
-  }
-
-  .field textarea{
-    min-height:115px;
-    padding:10px;
-    border-radius:12px;
-    font-size:16px;
-  }
-
-  .chipgrid{
-    gap:8px;
-  }
-
-  .chip{
-    padding:7px 10px;
-    font-size:10px;
-  }
-
-  .actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    margin-top:12px;
-  }
-
-  .actions .btn{
-    width:100%;
-    min-height:36px;
-    padding:8px 10px;
-    font-size:12px;
-  }
-
-  .helper-item{
-    padding:10px 12px;
-    border-radius:14px;
-  }
-
-  .helper-item-title{
-    font-size:10px;
-  }
-
-  .helper-item-text{
-    font-size:11px;
-  }
+  .reviewform-wrap{gap:12px;}
+  .page-head{display:grid;gap:10px;}
+  .page-head h1{font-size:22px;}
+  .page-head p{font-size:12px;}
+  .page-head-actions{width:100%;}
+  .page-head-actions .btn{width:100%;min-height:36px;padding:8px 10px;font-size:12px;}
+  .form-panel,.context-panel{padding:13px;border-radius:18px;}
+  .panel-title{font-size:17px;}
+  .panel-sub{font-size:11px;margin-bottom:12px;}
+  .alert{font-size:12px;padding:10px 12px;}
+  .trade-summary{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .summary-box{padding:10px 12px;border-radius:14px;}
+  .summary-label{font-size:10px;margin-bottom:5px;}
+  .summary-value{font-size:13px;}
+  .form-grid{gap:10px;}
+  .field label{font-size:10px;}
+  .field input{min-height:38px;padding:8px 10px;border-radius:12px;font-size:16px;}
+  .field textarea{min-height:115px;padding:10px;border-radius:12px;font-size:16px;}
+  .chipgrid{gap:8px;}
+  .chip{padding:7px 10px;font-size:10px;}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  .actions .btn{width:100%;min-height:36px;padding:8px 10px;font-size:12px;}
+  .helper-item{padding:10px 12px;border-radius:14px;}
+  .helper-item-title{font-size:10px;}
+  .helper-item-text{font-size:11px;}
 }
-
-@media (max-width:430px){
-  .trade-summary{
-    grid-template-columns:1fr;
-  }
-
-  .actions{
-    grid-template-columns:1fr;
-  }
-}
+@media (max-width:430px){.trade-summary{grid-template-columns:1fr;}.actions{grid-template-columns:1fr;}}
 </style>
 
 <div class="reviewform-wrap">
@@ -591,7 +300,7 @@ require_once __DIR__ . "/partials/app_header.php";
         </div>
         <div class="summary-box">
           <div class="summary-label">Result</div>
-          <div class="summary-value"><?= number_format((float)$trade['r_multiple'], 2) ?>R</div>
+          <div class="summary-value"><?= e(fmt_result($trade)) ?></div>
         </div>
       </div>
 
